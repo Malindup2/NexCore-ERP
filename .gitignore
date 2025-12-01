@@ -1,0 +1,20 @@
+# .NET
+bin/
+obj/
+
+# Node
+node_modules/
+.next/
+dist/
+out/
+
+# IDE
+.vscode/
+.idea/
+.vs
+
+# Logs
+*.log
+
+# Docker data
+docker-data/

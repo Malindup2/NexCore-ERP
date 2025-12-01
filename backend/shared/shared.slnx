@@ -1,0 +1,4 @@
+<Solution>
+  <Project Path="Shared.Logging/Shared.Logging.csproj" />
+  <Project Path="Shared.Messaging/Shared.Messaging.csproj" />
+</Solution>

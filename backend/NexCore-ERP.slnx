@@ -1,0 +1,7 @@
+<Solution>
+  <Project Path="gateway/ApiGateway/ApiGateway.csproj" />
+  <Project Path="shared/Shared.Common/Shared.Common.csproj" />
+  <Project Path="shared/Shared.Events/Shared.Events.csproj" />
+  <Project Path="shared/Shared.Logging/Shared.Logging.csproj" />
+  <Project Path="shared/Shared.Messaging/Shared.Messaging.csproj" />
+</Solution>
