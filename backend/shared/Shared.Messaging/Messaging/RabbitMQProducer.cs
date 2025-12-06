@@ -1,37 +1,41 @@
 using System.Text;
 using System.Text.Json;
-using RabbitMQ.Client;
+using RabbitMQ.Client; 
 using Shared.Events;
 
 namespace Shared.Messaging
 {
+   
     public class RabbitMQProducer : IRabbitMQProducer
     {
-        private readonly IConnection _connection;
+     
+        private readonly ConnectionFactory _factory;
 
         public RabbitMQProducer()
         {
-            var factory = new ConnectionFactory()
+            _factory = new ConnectionFactory
             {
                 HostName = "localhost",
                 Port = 5672,
                 UserName = "guest",
                 Password = "guest"
             };
-
-            _connection = factory.CreateConnection();
         }
 
-        public void PublishEvent<T>(T @event, string exchange) where T : IntegrationEvent
+        
+        public async Task PublishEventAsync<T>(T @event, string exchange) where T : IntegrationEvent
         {
-            using var channel = _connection.CreateModel();
 
-            channel.ExchangeDeclare(exchange, ExchangeType.Fanout, durable: true);
+            using var connection = await _factory.CreateConnectionAsync();
+
+            using var channel = await connection.CreateChannelAsync();
+
+            await channel.ExchangeDeclareAsync(exchange, ExchangeType.Fanout, durable: true);
 
             var message = JsonSerializer.Serialize(@event);
             var body = Encoding.UTF8.GetBytes(message);
 
-            channel.BasicPublish(exchange, routingKey: "", body: body);
+            await channel.BasicPublishAsync(exchange, routingKey: "", body: body);
         }
     }
 }
