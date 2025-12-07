@@ -6,6 +6,8 @@ using BCrypt.Net;
 using Microsoft.AspNetCore.Identity.Data;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using RegisterRequest = AuthService.DTOs.RegisterRequest;
+using LoginRequest = AuthService.DTOs.LoginRequest;
 
 namespace AuthService.Controllers
 {
