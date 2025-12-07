@@ -14,9 +14,9 @@
         public string Department { get; set; } = string.Empty;
         public string Designation { get; set; } = string.Empty;
         public DateTime JoiningDate { get; set; } = DateTime.UtcNow;
+
         public bool IsActive { get; set; } = true;
 
-        // Audit trails
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
         public DateTime? UpdatedAt { get; set; }
     }
