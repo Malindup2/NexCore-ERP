@@ -1,17 +1,18 @@
-using HRService.Data;
+using InventoryService.Data;
 using Microsoft.EntityFrameworkCore;
 using Serilog;
 using Shared.Logging;
 
 var builder = WebApplication.CreateBuilder(args);
 
+// Setup Logging
 builder.Logging.ClearProviders();
 builder.Logging.AddSerilogLogging();
 
-builder.Services.AddDbContext<HrDbContext>(options =>
+// Setup Database
+builder.Services.AddDbContext<InventoryDbContext>(options =>
     options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
 
-builder.Services.AddScoped<Shared.Messaging.IRabbitMQProducer, Shared.Messaging.RabbitMQProducer>();
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
