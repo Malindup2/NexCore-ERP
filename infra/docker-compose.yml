@@ -1,0 +1,37 @@
+version: '3.9'
+
+services:
+  postgres:
+    image: postgres:15
+    restart: always
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: 12345
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+  rabbitmq:
+    image: rabbitmq:3-management
+    ports:
+      - "5672:5672"   # App connection port
+      - "15672:15672" # Dashboard UI port
+    environment:
+      RABBITMQ_DEFAULT_USER: guest
+      RABBITMQ_DEFAULT_PASS: guest
+
+  redis:
+    image: redis:7
+    ports:
+      - "6379:6379"
+
+  seq:
+    image: datalust/seq
+    environment:
+      ACCEPT_EULA: "Y"
+    ports:
+      - "5341:80"
+
+volumes:
+  pgdata:
