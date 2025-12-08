@@ -1,0 +1,6 @@
+@PayrollService_HostAddress = http://localhost:5162
+
+GET {{PayrollService_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
