@@ -3,6 +3,8 @@ using InventoryService.DTOs;
 using InventoryService.Models;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Shared.Events;
+using Shared.Messaging;
 
 namespace InventoryService.Controllers
 {
@@ -11,22 +13,22 @@ namespace InventoryService.Controllers
     public class ProductsController : ControllerBase
     {
         private readonly InventoryDbContext _context;
+        private readonly IRabbitMQProducer _producer; 
 
-        public ProductsController(InventoryDbContext context)
+        public ProductsController(InventoryDbContext context, IRabbitMQProducer producer)
         {
             _context = context;
+            _producer = producer;
         }
 
         [HttpPost]
         public async Task<IActionResult> CreateProduct([FromBody] CreateProductRequest request)
         {
-            // 1. Check if SKU exists
             if (await _context.Products.AnyAsync(p => p.SKU == request.SKU))
             {
                 return BadRequest($"Product with SKU '{request.SKU}' already exists.");
             }
 
-            // 2. Save to DB
             var product = new Product
             {
                 Name = request.Name,
@@ -55,6 +57,34 @@ namespace InventoryService.Controllers
             var product = await _context.Products.FindAsync(id);
             if (product == null) return NotFound();
             return Ok(product);
+        }
+
+        //  Adjust Stock & Publish Event
+        [HttpPost("{id}/adjust-stock")]
+        public async Task<IActionResult> AdjustStock(int id, [FromBody] StockAdjustmentRequest request)
+        {
+            var product = await _context.Products.FindAsync(id);
+            if (product == null) return NotFound("Product not found.");
+
+            int oldQty = product.Quantity;
+            product.Quantity += request.Adjustment; 
+            product.UpdatedAt = DateTime.UtcNow;
+
+            await _context.SaveChangesAsync();
+
+            //  PUBLISH EVENT
+            var stockEvent = new StockUpdatedEvent
+            {
+                ProductId = product.Id,
+                SKU = product.SKU,
+                OldQuantity = oldQty,
+                NewQuantity = product.Quantity,
+                Reason = request.Reason
+            };
+
+            _producer.PublishEvent(stockEvent, "inventory.events");
+
+            return Ok(new { Message = "Stock updated", NewQuantity = product.Quantity });
         }
     }
 }
