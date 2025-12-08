@@ -13,6 +13,8 @@ builder.Logging.AddSerilogLogging();
 builder.Services.AddDbContext<PayrollDbContext>(options =>
     options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
 
+// Setup RabbitMQ Consumers
+builder.Services.AddHostedService<PayrollService.Consumers.EmployeeCreatedConsumer>();
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
