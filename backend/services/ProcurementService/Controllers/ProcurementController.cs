@@ -3,6 +3,8 @@ using Microsoft.EntityFrameworkCore;
 using ProcurementService.Data;
 using ProcurementService.DTOs;
 using ProcurementService.Models;
+using Shared.Events;
+using Shared.Messaging;
 
 namespace ProcurementService.Controllers
 {
@@ -10,6 +12,7 @@ namespace ProcurementService.Controllers
     [ApiController]
     public class ProcurementController : ControllerBase
     {
+        private readonly IRabbitMQProducer _producer;
         private readonly ProcurementDbContext _context;
 
         public ProcurementController(ProcurementDbContext context)
@@ -58,6 +61,35 @@ namespace ProcurementService.Controllers
             await _context.SaveChangesAsync();
 
             return Ok(new { Message = "Purchase Order created", PO_ID = po.Id, Status = "Draft" });
+        }
+
+
+
+        [HttpPost("orders/{id}/receive")]
+        public async Task<IActionResult> ReceiveGoods(int id)
+        {
+            //Find the Order
+            var order = await _context.PurchaseOrders.FindAsync(id);
+            if (order == null) return NotFound("Order not found");
+
+            if (order.Status == OrderStatus.Received)
+                return BadRequest("Order already received.");
+
+            // Update Status
+            order.Status = OrderStatus.Received;
+            await _context.SaveChangesAsync();
+
+            // Publish Event to RabbitMQ
+            var eventMessage = new GoodsReceivedEvent
+            {
+                PurchaseOrderId = order.Id,
+                ProductSku = order.ProductSku,
+                QuantityReceived = order.Quantity
+            };
+
+            _producer.PublishEvent(eventMessage, "procurement.events");
+
+            return Ok(new { Message = "Goods received. Inventory update triggered.", Status = "Received" });
         }
 
         // Get All Orders
