@@ -1,0 +1,110 @@
+/**
+ * Typography Utilities for NexCore ERP
+ * 
+ * Font Configuration:
+ * - Primary: Geist Sans (weights: 300, 400, 500, 600, 700, 800)
+ * - Monospace: Geist Mono (weights: 400, 500, 600, 700)
+ * 
+ * Usage Guidelines:
+ * - .font-normal (400): Body text, paragraphs, descriptions
+ * - .font-medium (500): Navigation, buttons, form labels, links
+ * - .font-semibold (600): Section headers, card titles, subheadings
+ * - .font-bold (700): Page titles, important statistics
+ * - .tabular-nums: Use for data tables, metrics, financial numbers
+ * - .font-mono-text: Code blocks, technical content
+ * 
+ * Responsive Classes:
+ * - .heading-1, .heading-2, .heading-3: Auto-scale on larger screens
+ * - .body-text, .body-small: Responsive body text sizes
+ * - .text-display: Hero/display text (scales dramatically)
+ */
+
+/* Typography Utilities */
+@layer utilities {
+  /* Font Weight Classes */
+  .font-light { font-weight: 300; }
+  .font-normal { font-weight: 400; }
+  .font-medium { font-weight: 500; }
+  .font-semibold { font-weight: 600; }
+  .font-bold { font-weight: 700; }
+  .font-extrabold { font-weight: 800; }
+  
+  /* Responsive Heading Classes */
+  .heading-1 {
+    font-size: 1.5rem;
+    font-weight: 700;
+    letter-spacing: -0.025em;
+    line-height: 1.2;
+  }
+  @media (min-width: 640px) {
+    .heading-1 { font-size: 1.875rem; }
+  }
+  @media (min-width: 1024px) {
+    .heading-1 { font-size: 2.25rem; }
+  }
+  
+  .heading-2 {
+    font-size: 1.25rem;
+    font-weight: 600;
+    letter-spacing: -0.025em;
+    line-height: 1.2;
+  }
+  @media (min-width: 640px) {
+    .heading-2 { font-size: 1.5rem; }
+  }
+  @media (min-width: 1024px) {
+    .heading-2 { font-size: 1.875rem; }
+  }
+  
+  .heading-3 {
+    font-size: 1.125rem;
+    font-weight: 600;
+    line-height: 1.2;
+  }
+  @media (min-width: 640px) {
+    .heading-3 { font-size: 1.25rem; }
+  }
+  
+  /* Responsive Body Text */
+  .body-text {
+    font-size: 0.875rem;
+    line-height: 1.6;
+  }
+  @media (min-width: 640px) {
+    .body-text { font-size: 1rem; }
+  }
+  
+  .body-small {
+    font-size: 0.75rem;
+  }
+  @media (min-width: 640px) {
+    .body-small { font-size: 0.875rem; }
+  }
+  
+  /* Display Text (Hero Sections) */
+  .text-display {
+    font-size: 2.25rem;
+    font-weight: 700;
+    letter-spacing: -0.025em;
+    line-height: 1.2;
+  }
+  @media (min-width: 640px) {
+    .text-display { font-size: 3rem; }
+  }
+  @media (min-width: 1024px) {
+    .text-display { font-size: 3.75rem; }
+  }
+  @media (min-width: 1280px) {
+    .text-display { font-size: 4.5rem; }
+  }
+  
+  /* Tabular Numbers for Data/Metrics */
+  .tabular-nums {
+    font-variant-numeric: tabular-nums;
+  }
+  
+  /* Monospace Text */
+  .font-mono-text {
+    font-family: var(--font-geist-mono);
+  }
+}

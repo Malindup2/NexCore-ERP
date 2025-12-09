@@ -16,7 +16,8 @@ import {
   BadgeCheck,
   CreditCard,
   Bell,
-  DollarSign
+  DollarSign,
+  ChevronRight
 } from "lucide-react"
 
 import {
@@ -136,25 +137,26 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
             <SidebarGroupLabel>Platform</SidebarGroupLabel>
             <SidebarMenu>
                 {data.navMain.map((item) => (
-                    <Collapsible 
-                        key={item.title} 
-                        asChild 
-                        defaultOpen={item.isActive || pathname?.startsWith(item.url)} 
-                        className="group/collapsible"
-                    >
-                        <SidebarMenuItem>
-                            <CollapsibleTrigger asChild>
-                                <SidebarMenuButton tooltip={item.title}>
-                                    {item.icon && <item.icon />}
-                                    <span>{item.title}</span>
-                                </SidebarMenuButton>
-                            </CollapsibleTrigger>
-                            {item.items?.length ? (
+                    item.items?.length ? (
+                        <Collapsible 
+                            key={item.title} 
+                            asChild 
+                            defaultOpen={item.isActive || pathname?.startsWith(item.url)} 
+                            className="group/collapsible"
+                        >
+                            <SidebarMenuItem>
+                                <CollapsibleTrigger asChild>
+                                    <SidebarMenuButton tooltip={item.title} className="transition-all duration-200">
+                                        {item.icon && <item.icon className="transition-transform duration-200" />}
+                                        <span>{item.title}</span>
+                                        <ChevronRight className="ml-auto transition-transform duration-300 group-data-[state=open]/collapsible:rotate-90" />
+                                    </SidebarMenuButton>
+                                </CollapsibleTrigger>
                                 <CollapsibleContent>
-                                    <SidebarMenuSub>
-                                        {item.items.map((subItem) => (
-                                            <SidebarMenuSubItem key={subItem.title}>
-                                                <SidebarMenuSubButton asChild isActive={pathname === subItem.url}>
+                                    <SidebarMenuSub className="animate-fade-in">
+                                        {item.items.map((subItem, index) => (
+                                            <SidebarMenuSubItem key={subItem.title} style={{ animationDelay: `${index * 50}ms` }} className="animate-slide-in">
+                                                <SidebarMenuSubButton asChild isActive={pathname === subItem.url} className="transition-all duration-200 hover:translate-x-1">
                                                     <Link href={subItem.url}>
                                                         <span>{subItem.title}</span>
                                                     </Link>
@@ -163,9 +165,18 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                                         ))}
                                     </SidebarMenuSub>
                                 </CollapsibleContent>
-                            ) : null}
+                            </SidebarMenuItem>
+                        </Collapsible>
+                    ) : (
+                        <SidebarMenuItem key={item.title}>
+                            <SidebarMenuButton asChild tooltip={item.title} isActive={pathname === item.url} className="transition-all duration-200 hover:translate-x-1">
+                                <Link href={item.url}>
+                                    {item.icon && <item.icon className="transition-transform duration-200" />}
+                                    <span>{item.title}</span>
+                                </Link>
+                            </SidebarMenuButton>
                         </SidebarMenuItem>
-                    </Collapsible>
+                    )
                 ))}
             </SidebarMenu>
         </SidebarGroup>
