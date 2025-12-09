@@ -51,11 +51,11 @@ namespace AccountingService.Consumers
 
             consumer.Received += async (model, ea) =>
             {
+                var body = ea.Body.ToArray();
+                var message = Encoding.UTF8.GetString(body);
+
                 try
                 {
-                    var body = ea.Body.ToArray();
-                    var message = Encoding.UTF8.GetString(body);
-
                     _logger.LogInformation($" [Accounting] Received Goods Received Event: {message}");
 
                     var options = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
@@ -64,15 +64,27 @@ namespace AccountingService.Consumers
                     if (eventData != null)
                     {
                         await RecordPurchaseTransaction(eventData);
+                        
+                        // Acknowledge successful processing
+                        _channel.BasicAck(ea.DeliveryTag, false);
+                        _logger.LogInformation($"[Accounting] Successfully processed goods received for PO #{eventData.PurchaseOrderId}");
+                    }
+                    else
+                    {
+                        _logger.LogWarning("Failed to deserialize goods received event");
+                        _channel.BasicNack(ea.DeliveryTag, false, false); // Don't requeue invalid messages
                     }
                 }
                 catch (Exception ex)
                 {
                     _logger.LogError($" Error processing goods received in accounting: {ex.Message}");
+                    // Reject and requeue for retry
+                    _channel.BasicNack(ea.DeliveryTag, false, true);
                 }
             };
 
-            _channel.BasicConsume(_queueName, true, consumer);
+            // Change autoAck to false for manual acknowledgment
+            _channel.BasicConsume(_queueName, autoAck: false, consumer);
             return Task.CompletedTask;
         }
 
@@ -94,14 +106,13 @@ namespace AccountingService.Consumers
                     return;
                 }
 
-                
-                // For now, using a placeholder calculation
-                decimal estimatedCost = eventData.QuantityReceived * 50m; 
+                // Use actual amount from purchase order
+                decimal actualAmount = eventData.TotalAmount;
 
-                
+                // Journal Entry: Record Inventory Purchase
                 var purchaseJournalEntry = new JournalEntry
                 {
-                    Date = DateTime.UtcNow,
+                    Date = eventData.ReceivedDate,
                     Description = $"Goods Received - PO #{eventData.PurchaseOrderId}",
                     ReferenceId = $"PO-{eventData.PurchaseOrderId}",
                     Lines = new List<JournalEntryLine>
@@ -109,14 +120,14 @@ namespace AccountingService.Consumers
                         new JournalEntryLine
                         {
                             AccountId = inventoryAsset.Id,
-                            Debit = estimatedCost,
+                            Debit = actualAmount,
                             Credit = 0
                         },
                         new JournalEntryLine
                         {
                             AccountId = accountsPayable.Id,
                             Debit = 0,
-                            Credit = estimatedCost
+                            Credit = actualAmount
                         }
                     }
                 };
@@ -124,12 +135,12 @@ namespace AccountingService.Consumers
                 context.JournalEntries.Add(purchaseJournalEntry);
 
                 // Update Account Balances
-                inventoryAsset.Balance += estimatedCost;
-                accountsPayable.Balance += estimatedCost;
+                inventoryAsset.Balance += actualAmount;
+                accountsPayable.Balance += actualAmount;
 
                 await context.SaveChangesAsync();
 
-                _logger.LogInformation($"[Accounting] Recorded Purchase: PO #{eventData.PurchaseOrderId} | SKU: {eventData.ProductSku} | Qty: {eventData.QuantityReceived} | Amount: {estimatedCost:C}");
+                _logger.LogInformation($"[Accounting] Recorded Purchase: PO #{eventData.PurchaseOrderId} | SKU: {eventData.ProductSku} | Qty: {eventData.QuantityReceived} | Amount: {actualAmount:C}");
             }
         }
 
