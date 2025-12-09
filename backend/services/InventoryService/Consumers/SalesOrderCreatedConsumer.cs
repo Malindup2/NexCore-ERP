@@ -131,14 +131,9 @@ namespace InventoryService.Consumers
                         TotalCost = unitCost * item.Quantity
                     };
 
-                        producer.PublishEvent(cogsEvent, "inventory.cogs.events");
+                    producer.PublishEvent(cogsEvent, "inventory.cogs.events");
 
-                        _logger.LogInformation($"[Stock Deducted] Order #{eventData.OrderNumber} | {product.Name} ({product.SKU}) | {oldQty} -> {product.Quantity} | COGS: {cogsEvent.TotalCost:C}");
-                    }
-                    else
-                    {
-                        _logger.LogWarning($" Sold product SKU '{item.ProductSku}' not found in Inventory!");
-                    }
+                    _logger.LogInformation($"[Stock Deducted] Order #{eventData.OrderNumber} | {product.Name} ({product.SKU}) | {oldQty} -> {product.Quantity} | COGS: {cogsEvent.TotalCost:C}");
                 }
 
                 await context.SaveChangesAsync();
