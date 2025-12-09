@@ -1,6 +1,5 @@
-using InventoryService.Data;
-using InventoryService.Consumers;
-using Microsoft.EntityFrameworkCore;
+﻿using Microsoft.EntityFrameworkCore;
+using ProcurementService.Data;
 using Serilog;
 using Shared.Logging;
 
@@ -10,12 +9,13 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Logging.ClearProviders();
 builder.Logging.AddSerilogLogging();
 
-// Setup Database
-builder.Services.AddDbContext<InventoryDbContext>(options =>
+//Setup Database
+builder.Services.AddDbContext<ProcurementDbContext>(options =>
     options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
 
-builder.Services.AddHostedService<GoodsReceivedConsumer>(); 
+//Setup RabbitMQ Producer 
 builder.Services.AddScoped<Shared.Messaging.IRabbitMQProducer, Shared.Messaging.RabbitMQProducer>();
+
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
