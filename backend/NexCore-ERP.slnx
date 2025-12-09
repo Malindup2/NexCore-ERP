@@ -5,6 +5,7 @@
   <Project Path="services/InventoryService/InventoryService.csproj" Id="07742fcb-7068-403e-b2dd-2e0264ae3ab4" />
   <Project Path="services/PayrollService/PayrollService.csproj" Id="812eca13-7c46-4303-83d5-32ef16469b2d" />
   <Project Path="services/ProcurementService/ProcurementService.csproj" Id="4dd49693-4f25-4893-bf24-615079c45273" />
+  <Project Path="services/SalesService/SalesService.csproj" Id="f93114ac-dfc9-4374-a303-dc30287f0aaf" />
   <Project Path="shared/Shared.Common/Shared.Common.csproj" />
   <Project Path="shared/Shared.Events/Shared.Events.csproj" />
   <Project Path="shared/Shared.Logging/Shared.Logging.csproj" />
