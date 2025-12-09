@@ -31,9 +31,16 @@ export default function RootLayout({
       >
         <SidebarProvider>
           <AppSidebar />
-          <main className="w-full">
-            <SidebarTrigger />
-            {children}
+          <main className="w-full flex flex-col">
+            <header className="sticky top-0 z-10 flex h-16 items-center gap-4 border-b bg-background px-6">
+              <SidebarTrigger />
+              <div className="flex-1">
+                <h2 className="text-lg font-semibold">NexCore ERP</h2>
+              </div>
+            </header>
+            <div className="flex-1">
+              {children}
+            </div>
           </main>
         </SidebarProvider>
       </body>

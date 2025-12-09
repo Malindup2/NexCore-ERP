@@ -15,7 +15,8 @@ import {
   Sparkles,
   BadgeCheck,
   CreditCard,
-  Bell
+  Bell,
+  DollarSign
 } from "lucide-react"
 
 import {
@@ -88,7 +89,15 @@ const data = {
       icon: Package,
       items: [
         { title: "Products", url: "/inventory/products" },
-        { title: "Warehouses", url: "/inventory/warehouses" },
+      ],
+    },
+    {
+      title: "Sales",
+      url: "/sales",
+      icon: DollarSign,
+      items: [
+        { title: "Customers", url: "/sales/customers" },
+        { title: "Sales Orders", url: "/sales/orders" },
       ],
     },
     {
@@ -101,13 +110,9 @@ const data = {
       ],
     },
     {
-      title: "Sales",
-      url: "/sales",
+      title: "Accounting",
+      url: "/accounting",
       icon: Receipt,
-      items: [
-        { title: "Customers", url: "/sales/customers" },
-        { title: "Orders", url: "/sales/orders" },
-      ],
     },
   ],
 }
