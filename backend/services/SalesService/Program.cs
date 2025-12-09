@@ -1,0 +1,34 @@
+using Microsoft.EntityFrameworkCore;
+using SalesService.Data;
+using Serilog;
+using Shared.Logging;
+
+var builder = WebApplication.CreateBuilder(args);
+
+//Setup Logging
+builder.Logging.ClearProviders();
+builder.Logging.AddSerilogLogging();
+
+//Setup Database
+builder.Services.AddDbContext<SalesDbContext>(options =>
+    options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
+
+// Setup RabbitMQ Producer (For Stock Reservations)
+builder.Services.AddScoped<Shared.Messaging.IRabbitMQProducer, Shared.Messaging.RabbitMQProducer>();
+
+builder.Services.AddControllers();
+builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddSwaggerGen();
+
+var app = builder.Build();
+
+if (app.Environment.IsDevelopment())
+{
+    app.UseSwagger();
+    app.UseSwaggerUI();
+}
+
+app.UseAuthorization();
+app.MapControllers();
+
+app.Run();
