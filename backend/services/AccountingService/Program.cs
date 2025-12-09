@@ -22,6 +22,21 @@ builder.Services.AddSwaggerGen();
 
 var app = builder.Build();
 
+using (var scope = app.Services.CreateScope())
+{
+    var services = scope.ServiceProvider;
+    try
+    {
+        var context = services.GetRequiredService<AccountingDbContext>();
+        DbInitializer.Initialize(context);
+        Log.Information(" Chart of Accounts Seeded Successfully");
+    }
+    catch (Exception ex)
+    {
+        Log.Error(ex, "An error occurred while seeding the database.");
+    }
+}
+
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
