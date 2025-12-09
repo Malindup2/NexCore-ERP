@@ -7,7 +7,7 @@
         "Action": "Start"
       },
       {
-        "Path": "services\\ProcurementService\\ProcurementService.csproj",
+        "Path": "services\\SalesService\\SalesService.csproj",
         "Action": "Start"
       }
     ]
