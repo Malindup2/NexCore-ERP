@@ -13,7 +13,7 @@ builder.Logging.AddSerilogLogging();
 builder.Services.AddDbContext<SalesDbContext>(options =>
     options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
 
-// Setup RabbitMQ Producer (For Stock Reservations)
+// Setup RabbitMQ Producer 
 builder.Services.AddScoped<Shared.Messaging.IRabbitMQProducer, Shared.Messaging.RabbitMQProducer>();
 
 builder.Services.AddControllers();
