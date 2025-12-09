@@ -23,6 +23,8 @@ export const metadata: Metadata = {
   description: "Enterprise Resource Planning System",
 };
 
+import { HeaderDateTime } from "@/components/header-date-time";
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -41,6 +43,7 @@ export default function RootLayout({
               <div className="flex-1">
                 <h2 className="text-lg font-semibold">NexCore ERP</h2>
               </div>
+              <HeaderDateTime />
               <ThemeToggle />
             </header>
             <div className="flex-1">

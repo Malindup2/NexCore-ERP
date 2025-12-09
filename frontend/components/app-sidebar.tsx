@@ -19,6 +19,7 @@ import {
   DollarSign,
   ChevronRight
 } from "lucide-react"
+import { motion, AnimatePresence } from "framer-motion"
 
 import {
   Sidebar,
@@ -146,33 +147,42 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                         >
                             <SidebarMenuItem>
                                 <CollapsibleTrigger asChild>
-                                    <SidebarMenuButton tooltip={item.title} className="transition-all duration-200">
-                                        {item.icon && <item.icon className="transition-transform duration-200" />}
-                                        <span>{item.title}</span>
+                                    <SidebarMenuButton tooltip={item.title} className="transition-all duration-200 hover:bg-sidebar-accent hover:pl-3">
+                                        {item.icon && <item.icon className="transition-transform duration-200 group-hover/collapsible:scale-110" />}
+                                        <span className="font-medium">{item.title}</span>
                                         <ChevronRight className="ml-auto transition-transform duration-300 group-data-[state=open]/collapsible:rotate-90" />
                                     </SidebarMenuButton>
                                 </CollapsibleTrigger>
                                 <CollapsibleContent>
-                                    <SidebarMenuSub className="animate-fade-in">
-                                        {item.items.map((subItem, index) => (
-                                            <SidebarMenuSubItem key={subItem.title} style={{ animationDelay: `${index * 50}ms` }} className="animate-slide-in">
-                                                <SidebarMenuSubButton asChild isActive={pathname === subItem.url} className="transition-all duration-200 hover:translate-x-1">
-                                                    <Link href={subItem.url}>
-                                                        <span>{subItem.title}</span>
-                                                    </Link>
-                                                </SidebarMenuSubButton>
-                                            </SidebarMenuSubItem>
-                                        ))}
+                                    <SidebarMenuSub className="overflow-hidden">
+                                        <AnimatePresence>
+                                            {item.items.map((subItem, index) => (
+                                                <SidebarMenuSubItem key={subItem.title}>
+                                                    <motion.div
+                                                        initial={{ opacity: 0, x: -10 }}
+                                                        animate={{ opacity: 1, x: 0 }}
+                                                        exit={{ opacity: 0, x: -10 }}
+                                                        transition={{ delay: index * 0.05, duration: 0.2, ease: "easeOut" }}
+                                                    >
+                                                        <SidebarMenuSubButton asChild isActive={pathname === subItem.url} className="transition-all duration-200 hover:translate-x-1 hover:bg-sidebar-accent/50">
+                                                            <Link href={subItem.url}>
+                                                                <span>{subItem.title}</span>
+                                                            </Link>
+                                                        </SidebarMenuSubButton>
+                                                    </motion.div>
+                                                </SidebarMenuSubItem>
+                                            ))}
+                                        </AnimatePresence>
                                     </SidebarMenuSub>
                                 </CollapsibleContent>
                             </SidebarMenuItem>
                         </Collapsible>
                     ) : (
                         <SidebarMenuItem key={item.title}>
-                            <SidebarMenuButton asChild tooltip={item.title} isActive={pathname === item.url} className="transition-all duration-200 hover:translate-x-1">
+                            <SidebarMenuButton asChild tooltip={item.title} isActive={pathname === item.url} className="transition-all duration-200 hover:bg-sidebar-accent hover:pl-3">
                                 <Link href={item.url}>
-                                    {item.icon && <item.icon className="transition-transform duration-200" />}
-                                    <span>{item.title}</span>
+                                    {item.icon && <item.icon className="transition-transform duration-200 group-hover:scale-110" />}
+                                    <span className="font-medium">{item.title}</span>
                                 </Link>
                             </SidebarMenuButton>
                         </SidebarMenuItem>
