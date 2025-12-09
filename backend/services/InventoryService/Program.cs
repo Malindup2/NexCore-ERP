@@ -16,6 +16,7 @@ builder.Services.AddDbContext<InventoryDbContext>(options =>
 
 builder.Services.AddHostedService<GoodsReceivedConsumer>(); 
 builder.Services.AddScoped<Shared.Messaging.IRabbitMQProducer, Shared.Messaging.RabbitMQProducer>();
+builder.Services.AddHostedService<InventoryService.Consumers.SalesOrderCreatedConsumer>();
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
