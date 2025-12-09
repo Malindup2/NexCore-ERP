@@ -3,11 +3,11 @@
     "Name": "New Profile",
     "Projects": [
       {
-        "Path": "services\\HRService\\HRService.csproj",
+        "Path": "services\\InventoryService\\InventoryService.csproj",
         "Action": "Start"
       },
       {
-        "Path": "services\\PayrollService\\PayrollService.csproj",
+        "Path": "services\\ProcurementService\\ProcurementService.csproj",
         "Action": "Start"
       }
     ]
