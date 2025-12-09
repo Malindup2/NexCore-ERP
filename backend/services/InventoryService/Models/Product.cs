@@ -16,7 +16,10 @@ namespace InventoryService.Models
         public string Description { get; set; } = string.Empty;
 
         [Column(TypeName = "decimal(18,2)")]
-        public decimal Price { get; set; }
+        public decimal Price { get; set; } // Selling Price
+
+        [Column(TypeName = "decimal(18,2)")]
+        public decimal CostPrice { get; set; } // Cost Price for COGS calculation
 
         public int Quantity { get; set; }
 
