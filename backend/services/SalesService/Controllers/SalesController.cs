@@ -43,8 +43,28 @@ namespace SalesService.Controllers
         [HttpPost("orders")]
         public async Task<IActionResult> CreateOrder([FromBody] CreateSalesOrderRequest request)
         {
+            // Validate customer exists
+            var customerExists = await _context.Customers.AnyAsync(c => c.Id == request.CustomerId);
+            if (!customerExists)
+            {
+                return BadRequest(new { Message = "Customer not found" });
+            }
+
+            // Validate all items have positive quantities and prices
+            if (request.Items.Any(i => i.Quantity <= 0 || i.UnitPrice <= 0))
+            {
+                return BadRequest(new { Message = "All items must have positive quantity and unit price" });
+            }
+
             // Calculate Total
             decimal totalAmount = request.Items.Sum(i => i.Quantity * i.UnitPrice);
+
+            // Validate total amount matches
+            decimal calculatedTotal = request.Items.Sum(i => i.Quantity * i.UnitPrice);
+            if (Math.Abs(totalAmount - calculatedTotal) > 0.01m)
+            {
+                return BadRequest(new { Message = "Order total mismatch" });
+            }
 
             // Create Order Entity
             var order = new SalesOrder

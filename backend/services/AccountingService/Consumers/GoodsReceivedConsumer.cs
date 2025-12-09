@@ -1,4 +1,4 @@
-﻿using System.Text;
+using System.Text;
 using System.Text.Json;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.DependencyInjection;
@@ -7,10 +7,10 @@ using Microsoft.EntityFrameworkCore;
 using RabbitMQ.Client;
 using RabbitMQ.Client.Events;
 using Shared.Events;
-using InventoryService.Data;
-using InventoryService.Models;
+using AccountingService.Data;
+using AccountingService.Models;
 
-namespace InventoryService.Consumers
+namespace AccountingService.Consumers
 {
     public class GoodsReceivedConsumer : BackgroundService
     {
@@ -39,8 +39,8 @@ namespace InventoryService.Consumers
             // Declare Exchange
             _channel.ExchangeDeclare("procurement.events", ExchangeType.Fanout, durable: true);
 
-            //Create Queue & Bind
-            _queueName = "inventory.goods.received.queue";
+            // Create Queue & Bind
+            _queueName = "accounting.procurement.goods.queue";
             _channel.QueueDeclare(queue: _queueName, durable: true, exclusive: false, autoDelete: false);
             _channel.QueueBind(_queueName, "procurement.events", "");
         }
@@ -56,18 +56,18 @@ namespace InventoryService.Consumers
 
                 try
                 {
-                    _logger.LogInformation($" [Inventory] Received Goods: {message}");
+                    _logger.LogInformation($" [Accounting] Received Goods Received Event: {message}");
 
                     var options = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
                     var eventData = JsonSerializer.Deserialize<GoodsReceivedEvent>(message, options);
 
                     if (eventData != null)
                     {
-                        await UpdateStock(eventData);
+                        await RecordPurchaseTransaction(eventData);
                         
                         // Acknowledge successful processing
                         _channel.BasicAck(ea.DeliveryTag, false);
-                        _logger.LogInformation($"[Inventory] Successfully processed goods received for PO #{eventData.PurchaseOrderId}");
+                        _logger.LogInformation($"[Accounting] Successfully processed goods received for PO #{eventData.PurchaseOrderId}");
                     }
                     else
                     {
@@ -77,7 +77,7 @@ namespace InventoryService.Consumers
                 }
                 catch (Exception ex)
                 {
-                    _logger.LogError($" Error processing goods received: {ex.Message}");
+                    _logger.LogError($" Error processing goods received in accounting: {ex.Message}");
                     // Reject and requeue for retry
                     _channel.BasicNack(ea.DeliveryTag, false, true);
                 }
@@ -88,30 +88,67 @@ namespace InventoryService.Consumers
             return Task.CompletedTask;
         }
 
-        private async Task UpdateStock(GoodsReceivedEvent eventData)
+        private async Task RecordPurchaseTransaction(GoodsReceivedEvent eventData)
         {
             using (var scope = _scopeFactory.CreateScope())
             {
-                var context = scope.ServiceProvider.GetRequiredService<InventoryDbContext>();
+                var context = scope.ServiceProvider.GetRequiredService<AccountingDbContext>();
 
+                // Find required accounts
+                var inventoryAsset = await context.Accounts
+                    .FirstOrDefaultAsync(a => a.AccountCode == "1300");
+                var accountsPayable = await context.Accounts
+                    .FirstOrDefaultAsync(a => a.AccountCode == "2000");
 
-                var product = await context.Products.FirstOrDefaultAsync(p => p.SKU == eventData.ProductSku);
-
-                if (product != null)
+                if (inventoryAsset == null || accountsPayable == null)
                 {
-                    int oldQty = product.Quantity;
-                    product.Quantity += eventData.QuantityReceived;
-                    product.UpdatedAt = DateTime.UtcNow;
-
-                    await context.SaveChangesAsync();
-
-                    _logger.LogInformation($" [Stock Updated] {product.Name} (SKU: {product.SKU}) | {oldQty} -> {product.Quantity}");
+                    _logger.LogError("Required accounts not found in Chart of Accounts!");
+                    return;
                 }
-                else
+
+                // Use actual amount from purchase order
+                decimal actualAmount = eventData.TotalAmount;
+
+                // Journal Entry: Record Inventory Purchase
+                var purchaseJournalEntry = new JournalEntry
                 {
-                    _logger.LogWarning($" Product with SKU '{eventData.ProductSku}' not found. Stock update skipped.");
-                }
+                    Date = eventData.ReceivedDate,
+                    Description = $"Goods Received - PO #{eventData.PurchaseOrderId}",
+                    ReferenceId = $"PO-{eventData.PurchaseOrderId}",
+                    Lines = new List<JournalEntryLine>
+                    {
+                        new JournalEntryLine
+                        {
+                            AccountId = inventoryAsset.Id,
+                            Debit = actualAmount,
+                            Credit = 0
+                        },
+                        new JournalEntryLine
+                        {
+                            AccountId = accountsPayable.Id,
+                            Debit = 0,
+                            Credit = actualAmount
+                        }
+                    }
+                };
+
+                context.JournalEntries.Add(purchaseJournalEntry);
+
+                // Update Account Balances
+                inventoryAsset.Balance += actualAmount;
+                accountsPayable.Balance += actualAmount;
+
+                await context.SaveChangesAsync();
+
+                _logger.LogInformation($"[Accounting] Recorded Purchase: PO #{eventData.PurchaseOrderId} | SKU: {eventData.ProductSku} | Qty: {eventData.QuantityReceived} | Amount: {actualAmount:C}");
             }
+        }
+
+        public override void Dispose()
+        {
+            _channel?.Close();
+            _connection?.Close();
+            base.Dispose();
         }
     }
 }

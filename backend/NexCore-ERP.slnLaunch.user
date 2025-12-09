@@ -3,11 +3,19 @@
     "Name": "New Profile",
     "Projects": [
       {
+        "Path": "services\\SalesService\\SalesService.csproj",
+        "Action": "Start"
+      },
+      {
+        "Path": "services\\AccountingService\\AccountingService.csproj",
+        "Action": "Start"
+      },
+      {
         "Path": "services\\InventoryService\\InventoryService.csproj",
         "Action": "Start"
       },
       {
-        "Path": "services\\SalesService\\SalesService.csproj",
+        "Path": "services\\ProcurementService\\ProcurementService.csproj",
         "Action": "Start"
       }
     ]

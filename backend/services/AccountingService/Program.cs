@@ -1,4 +1,4 @@
-using AccountingService.Data;
+﻿using AccountingService.Data;
 using Microsoft.EntityFrameworkCore;
 using Serilog;
 using Shared.Logging;
@@ -13,8 +13,13 @@ builder.Logging.AddSerilogLogging();
 builder.Services.AddDbContext<AccountingDbContext>(options =>
     options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
 
-//  Setup RabbitMQ (Needed for consumers later)
+//  Setup RabbitMQ
 builder.Services.AddScoped<Shared.Messaging.IRabbitMQProducer, Shared.Messaging.RabbitMQProducer>();
+
+// Add Consumers for Accounting Automation
+builder.Services.AddHostedService<AccountingService.Consumers.SalesOrderCreatedConsumer>();
+builder.Services.AddHostedService<AccountingService.Consumers.GoodsReceivedConsumer>();
+builder.Services.AddHostedService<AccountingService.Consumers.StockDeductedConsumer>();
 
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
@@ -29,7 +34,7 @@ using (var scope = app.Services.CreateScope())
     {
         var context = services.GetRequiredService<AccountingDbContext>();
         DbInitializer.Initialize(context);
-        Log.Information(" Chart of Accounts Seeded Successfully");
+        Log.Information("Chart of Accounts Seeded Successfully");
     }
     catch (Exception ex)
     {

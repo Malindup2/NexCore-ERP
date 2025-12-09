@@ -15,6 +15,9 @@ namespace InventoryService.DTOs
         [Range(0.01, double.MaxValue, ErrorMessage = "Price must be greater than 0")]
         public decimal Price { get; set; }
 
+        [Range(0.01, double.MaxValue, ErrorMessage = "Cost price must be greater than 0")]
+        public decimal CostPrice { get; set; }
+
         public int Quantity { get; set; }
     }
 }

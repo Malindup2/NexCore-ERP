@@ -1,15 +1,16 @@
 ﻿using System.Text;
 using System.Text.Json;
-using InventoryService.Data;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using Microsoft.EntityFrameworkCore;
 using RabbitMQ.Client;
 using RabbitMQ.Client.Events;
 using Shared.Events;
+using AccountingService.Data;
+using AccountingService.Models;
 
-namespace InventoryService.Consumers
+namespace AccountingService.Consumers
 {
     public class SalesOrderCreatedConsumer : BackgroundService
     {
@@ -35,11 +36,11 @@ namespace InventoryService.Consumers
             _connection = factory.CreateConnection();
             _channel = _connection.CreateModel();
 
-            // Declare Exchange 
+            // Declare Exchange
             _channel.ExchangeDeclare("sales.events", ExchangeType.Fanout, durable: true);
 
-            //Create Queue & Bind
-            _queueName = "inventory.sales.orders.queue";
+            // Create Queue & Bind
+            _queueName = "accounting.sales.orders.queue";
             _channel.QueueDeclare(queue: _queueName, durable: true, exclusive: false, autoDelete: false);
             _channel.QueueBind(_queueName, "sales.events", "");
         }
@@ -55,18 +56,18 @@ namespace InventoryService.Consumers
 
                 try
                 {
-                    _logger.LogInformation($" [Inventory] Received Sales Order: {message}");
+                    _logger.LogInformation($" [Accounting] Received Sales Order: {message}");
 
                     var options = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
                     var eventData = JsonSerializer.Deserialize<SalesOrderCreatedEvent>(message, options);
 
                     if (eventData != null)
                     {
-                        await DeductStock(eventData);
+                        await RecordSalesTransaction(eventData);
                         
                         // Acknowledge successful processing
                         _channel.BasicAck(ea.DeliveryTag, false);
-                        _logger.LogInformation($"[Inventory] Successfully processed stock deduction for order #{eventData.OrderNumber}");
+                        _logger.LogInformation($"[Accounting] Successfully processed sales order #{eventData.OrderNumber}");
                     }
                     else
                     {
@@ -76,7 +77,7 @@ namespace InventoryService.Consumers
                 }
                 catch (Exception ex)
                 {
-                    _logger.LogError($" Error processing sales order: {ex.Message}");
+                    _logger.LogError($" Error processing sales order in accounting: {ex.Message}");
                     // Reject and requeue for retry
                     _channel.BasicNack(ea.DeliveryTag, false, true);
                 }
@@ -87,57 +88,65 @@ namespace InventoryService.Consumers
             return Task.CompletedTask;
         }
 
-        private async Task DeductStock(SalesOrderCreatedEvent eventData)
+        private async Task RecordSalesTransaction(SalesOrderCreatedEvent eventData)
         {
             using (var scope = _scopeFactory.CreateScope())
             {
-                var context = scope.ServiceProvider.GetRequiredService<InventoryDbContext>();
-                var producer = scope.ServiceProvider.GetRequiredService<Shared.Messaging.IRabbitMQProducer>();
+                var context = scope.ServiceProvider.GetRequiredService<AccountingDbContext>();
 
-                foreach (var item in eventData.Items)
+                // Find required accounts for revenue recognition
+                var accountsReceivable = await context.Accounts
+                    .FirstOrDefaultAsync(a => a.AccountCode == "1200");
+                var salesRevenue = await context.Accounts
+                    .FirstOrDefaultAsync(a => a.AccountCode == "4000");
+
+                if (accountsReceivable == null || salesRevenue == null)
                 {
-                    // Find Product
-                    var product = await context.Products.FirstOrDefaultAsync(p => p.SKU == item.ProductSku);
-
-                    if (product == null)
-                    {
-                        _logger.LogWarning($"Product SKU '{item.ProductSku}' not found in Inventory!");
-                        continue;
-                    }
-
-                    // Validate sufficient stock
-                    if (product.Quantity < item.Quantity)
-                    {
-                        _logger.LogError($"Insufficient stock for {item.ProductSku}. Available: {product.Quantity}, Requested: {item.Quantity}");
-                        continue;
-                    }
-
-                    int oldQty = product.Quantity;
-                    product.Quantity -= item.Quantity;
-                    product.UpdatedAt = DateTime.UtcNow;
-
-                    // Use actual CostPrice 
-                    decimal unitCost = product.CostPrice > 0 ? product.CostPrice : product.Price * 0.60m;
-
-                    // Publish COGS Event for Accounting with actual cost
-                    var cogsEvent = new StockDeductedEvent
-                    {
-                        OrderId = eventData.OrderId,
-                        OrderNumber = eventData.OrderNumber,
-                        ProductSku = product.SKU,
-                        ProductName = product.Name,
-                        QuantityDeducted = item.Quantity,
-                        UnitCost = unitCost,
-                        TotalCost = unitCost * item.Quantity
-                    };
-
-                    producer.PublishEvent(cogsEvent, "inventory.cogs.events");
-
-                    _logger.LogInformation($"[Stock Deducted] Order #{eventData.OrderNumber} | {product.Name} ({product.SKU}) | {oldQty} -> {product.Quantity} | COGS: {cogsEvent.TotalCost:C}");
+                    _logger.LogError("Required accounts (A/R or Revenue) not found in Chart of Accounts!");
+                    return;
                 }
 
+                // Journal Entry: Record Sale (Revenue Recognition)
+                // Note: COGS is now handled separately by StockDeductedConsumer with actual costs
+                var saleJournalEntry = new JournalEntry
+                {
+                    Date = DateTime.UtcNow,
+                    Description = $"Sales Order #{eventData.OrderNumber}",
+                    ReferenceId = $"SO-{eventData.OrderId}",
+                    Lines = new List<JournalEntryLine>
+                    {
+                        new JournalEntryLine
+                        {
+                            AccountId = accountsReceivable.Id,
+                            Debit = eventData.TotalAmount,
+                            Credit = 0
+                        },
+                        new JournalEntryLine
+                        {
+                            AccountId = salesRevenue.Id,
+                            Debit = 0,
+                            Credit = eventData.TotalAmount
+                        }
+                    }
+                };
+
+                context.JournalEntries.Add(saleJournalEntry);
+
+                // Update Account Balances
+                accountsReceivable.Balance += eventData.TotalAmount;
+                salesRevenue.Balance += eventData.TotalAmount;
+
                 await context.SaveChangesAsync();
+
+                _logger.LogInformation($"[Accounting] Recorded Revenue: Order #{eventData.OrderNumber} | Amount: {eventData.TotalAmount:C}");
             }
+        }
+
+        public override void Dispose()
+        {
+            _channel?.Close();
+            _connection?.Close();
+            base.Dispose();
         }
     }
 }

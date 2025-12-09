@@ -50,6 +50,30 @@ namespace ProcurementService.Controllers
             var supplier = await _context.Suppliers.FindAsync(request.SupplierId);
             if (supplier == null) return BadRequest("Invalid Supplier ID");
 
+            // Validate positive quantity and amount
+            if (request.Quantity <= 0)
+            {
+                return BadRequest(new { Message = "Quantity must be greater than zero" });
+            }
+
+            if (request.TotalAmount <= 0)
+            {
+                return BadRequest(new { Message = "Total amount must be greater than zero" });
+            }
+
+            // Validate unit price is reasonable
+            decimal unitPrice = request.TotalAmount / request.Quantity;
+            if (unitPrice <= 0)
+            {
+                return BadRequest(new { Message = "Invalid unit price calculation" });
+            }
+
+            // Validate SKU format
+            if (string.IsNullOrWhiteSpace(request.ProductSku))
+            {
+                return BadRequest(new { Message = "Product SKU is required" });
+            }
+
             var po = new PurchaseOrder
             {
                 SupplierId = request.SupplierId,
@@ -63,7 +87,13 @@ namespace ProcurementService.Controllers
             _context.PurchaseOrders.Add(po);
             await _context.SaveChangesAsync();
 
-            return Ok(new { Message = "Purchase Order created", PO_ID = po.Id, Status = "Draft" });
+            return Ok(new { 
+                Message = "Purchase Order created", 
+                PO_ID = po.Id, 
+                Status = "Draft",
+                UnitPrice = unitPrice,
+                TotalAmount = request.TotalAmount
+            });
         }
 
 
@@ -78,16 +108,19 @@ namespace ProcurementService.Controllers
             if (order.Status == OrderStatus.Received)
                 return BadRequest("Order already received.");
 
-            // Update Status
+            // Update Status and received date
             order.Status = OrderStatus.Received;
+            var receivedDate = DateTime.UtcNow;
             await _context.SaveChangesAsync();
 
-            // Publish Event to RabbitMQ
+            // Publish Event to RabbitMQ with actual amount
             var eventMessage = new GoodsReceivedEvent
             {
                 PurchaseOrderId = order.Id,
                 ProductSku = order.ProductSku,
-                QuantityReceived = order.Quantity
+                QuantityReceived = order.Quantity,
+                TotalAmount = order.TotalAmount,
+                ReceivedDate = receivedDate
             };
 
             _producer.PublishEvent(eventMessage, "procurement.events");

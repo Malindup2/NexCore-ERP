@@ -9,5 +9,6 @@ namespace PayrollService.Data
         {
         }
         public DbSet<SalaryRecord> SalaryRecords { get; set; }
+        public DbSet<PayrollRun> PayrollRuns { get; set; }
     }
 }
