@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.Mvc;
+﻿using InventoryService.Models;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using ProcurementService.Data;
 using ProcurementService.DTOs;
@@ -15,10 +16,12 @@ namespace ProcurementService.Controllers
         private readonly IRabbitMQProducer _producer;
         private readonly ProcurementDbContext _context;
 
-        public ProcurementController(ProcurementDbContext context)
+        public ProcurementController(ProcurementDbContext context, IRabbitMQProducer producer)
         {
             _context = context;
+            _producer = producer;
         }
+
 
         //  Create a Supplier
         [HttpPost("suppliers")]

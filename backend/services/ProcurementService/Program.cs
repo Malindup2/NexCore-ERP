@@ -1,19 +1,21 @@
-using Microsoft.EntityFrameworkCore;
+﻿using Microsoft.EntityFrameworkCore;
 using ProcurementService.Data;
 using Serilog;
 using Shared.Logging;
 
 var builder = WebApplication.CreateBuilder(args);
 
-//  Setup Logging
+// Setup Logging
 builder.Logging.ClearProviders();
 builder.Logging.AddSerilogLogging();
 
-// Setup Database
+//Setup Database
 builder.Services.AddDbContext<ProcurementDbContext>(options =>
     options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
 
+//Setup RabbitMQ Producer 
 builder.Services.AddScoped<Shared.Messaging.IRabbitMQProducer, Shared.Messaging.RabbitMQProducer>();
+
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
