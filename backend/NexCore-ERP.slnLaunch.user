@@ -9,6 +9,14 @@
       {
         "Path": "services\\AccountingService\\AccountingService.csproj",
         "Action": "Start"
+      },
+      {
+        "Path": "services\\InventoryService\\InventoryService.csproj",
+        "Action": "Start"
+      },
+      {
+        "Path": "services\\ProcurementService\\ProcurementService.csproj",
+        "Action": "Start"
       }
     ]
   }

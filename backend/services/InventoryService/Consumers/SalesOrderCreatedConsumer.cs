@@ -50,11 +50,11 @@ namespace InventoryService.Consumers
 
             consumer.Received += async (model, ea) =>
             {
+                var body = ea.Body.ToArray();
+                var message = Encoding.UTF8.GetString(body);
+
                 try
                 {
-                    var body = ea.Body.ToArray();
-                    var message = Encoding.UTF8.GetString(body);
-
                     _logger.LogInformation($" [Inventory] Received Sales Order: {message}");
 
                     var options = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
@@ -63,15 +63,27 @@ namespace InventoryService.Consumers
                     if (eventData != null)
                     {
                         await DeductStock(eventData);
+                        
+                        // Acknowledge successful processing
+                        _channel.BasicAck(ea.DeliveryTag, false);
+                        _logger.LogInformation($"[Inventory] Successfully processed stock deduction for order #{eventData.OrderNumber}");
+                    }
+                    else
+                    {
+                        _logger.LogWarning("Failed to deserialize sales order event");
+                        _channel.BasicNack(ea.DeliveryTag, false, false); // Don't requeue invalid messages
                     }
                 }
                 catch (Exception ex)
                 {
                     _logger.LogError($" Error processing sales order: {ex.Message}");
+                    // Reject and requeue for retry
+                    _channel.BasicNack(ea.DeliveryTag, false, true);
                 }
             };
 
-            _channel.BasicConsume(_queueName, true, consumer);
+            // Change autoAck to false for manual acknowledgment
+            _channel.BasicConsume(_queueName, autoAck: false, consumer);
             return Task.CompletedTask;
         }
 
@@ -87,24 +99,37 @@ namespace InventoryService.Consumers
                     // Find Product
                     var product = await context.Products.FirstOrDefaultAsync(p => p.SKU == item.ProductSku);
 
-                    if (product != null)
+                    if (product == null)
                     {
-                        int oldQty = product.Quantity;
+                        _logger.LogWarning($"Product SKU '{item.ProductSku}' not found in Inventory!");
+                        continue;
+                    }
 
-                        product.Quantity -= item.Quantity;
-                        product.UpdatedAt = DateTime.UtcNow;
+                    // Validate sufficient stock
+                    if (product.Quantity < item.Quantity)
+                    {
+                        _logger.LogError($"Insufficient stock for {item.ProductSku}. Available: {product.Quantity}, Requested: {item.Quantity}");
+                        continue;
+                    }
 
-                        // Publish COGS Event for Accounting with actual cost
-                        var cogsEvent = new StockDeductedEvent
-                        {
-                            OrderId = eventData.OrderId,
-                            OrderNumber = eventData.OrderNumber,
-                            ProductSku = product.SKU,
-                            ProductName = product.Name,
-                            QuantityDeducted = item.Quantity,
-                            UnitCost = product.CostPrice > 0 ? product.CostPrice : product.Price * 0.60m, // Use actual cost or estimate
-                            TotalCost = (product.CostPrice > 0 ? product.CostPrice : product.Price * 0.60m) * item.Quantity
-                        };
+                    int oldQty = product.Quantity;
+                    product.Quantity -= item.Quantity;
+                    product.UpdatedAt = DateTime.UtcNow;
+
+                    // Use actual CostPrice 
+                    decimal unitCost = product.CostPrice > 0 ? product.CostPrice : product.Price * 0.60m;
+
+                    // Publish COGS Event for Accounting with actual cost
+                    var cogsEvent = new StockDeductedEvent
+                    {
+                        OrderId = eventData.OrderId,
+                        OrderNumber = eventData.OrderNumber,
+                        ProductSku = product.SKU,
+                        ProductName = product.Name,
+                        QuantityDeducted = item.Quantity,
+                        UnitCost = unitCost,
+                        TotalCost = unitCost * item.Quantity
+                    };
 
                         producer.PublishEvent(cogsEvent, "inventory.cogs.events");
 

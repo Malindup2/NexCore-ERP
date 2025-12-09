@@ -108,16 +108,19 @@ namespace ProcurementService.Controllers
             if (order.Status == OrderStatus.Received)
                 return BadRequest("Order already received.");
 
-            // Update Status
+            // Update Status and received date
             order.Status = OrderStatus.Received;
+            var receivedDate = DateTime.UtcNow;
             await _context.SaveChangesAsync();
 
-            // Publish Event to RabbitMQ
+            // Publish Event to RabbitMQ with actual amount
             var eventMessage = new GoodsReceivedEvent
             {
                 PurchaseOrderId = order.Id,
                 ProductSku = order.ProductSku,
-                QuantityReceived = order.Quantity
+                QuantityReceived = order.Quantity,
+                TotalAmount = order.TotalAmount,
+                ReceivedDate = receivedDate
             };
 
             _producer.PublishEvent(eventMessage, "procurement.events");

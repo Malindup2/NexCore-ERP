@@ -51,11 +51,11 @@ namespace InventoryService.Consumers
 
             consumer.Received += async (model, ea) =>
             {
+                var body = ea.Body.ToArray();
+                var message = Encoding.UTF8.GetString(body);
+
                 try
                 {
-                    var body = ea.Body.ToArray();
-                    var message = Encoding.UTF8.GetString(body);
-
                     _logger.LogInformation($" [Inventory] Received Goods: {message}");
 
                     var options = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
@@ -64,15 +64,27 @@ namespace InventoryService.Consumers
                     if (eventData != null)
                     {
                         await UpdateStock(eventData);
+                        
+                        // Acknowledge successful processing
+                        _channel.BasicAck(ea.DeliveryTag, false);
+                        _logger.LogInformation($"[Inventory] Successfully processed goods received for PO #{eventData.PurchaseOrderId}");
+                    }
+                    else
+                    {
+                        _logger.LogWarning("Failed to deserialize goods received event");
+                        _channel.BasicNack(ea.DeliveryTag, false, false); // Don't requeue invalid messages
                     }
                 }
                 catch (Exception ex)
                 {
                     _logger.LogError($" Error processing goods received: {ex.Message}");
+                    // Reject and requeue for retry
+                    _channel.BasicNack(ea.DeliveryTag, false, true);
                 }
             };
 
-            _channel.BasicConsume(_queueName, true, consumer);
+            // Change autoAck to false for manual acknowledgment
+            _channel.BasicConsume(_queueName, autoAck: false, consumer);
             return Task.CompletedTask;
         }
 
