@@ -80,6 +80,7 @@ namespace InventoryService.Consumers
             using (var scope = _scopeFactory.CreateScope())
             {
                 var context = scope.ServiceProvider.GetRequiredService<InventoryDbContext>();
+                var producer = scope.ServiceProvider.GetRequiredService<Shared.Messaging.IRabbitMQProducer>();
 
                 foreach (var item in eventData.Items)
                 {
@@ -93,7 +94,21 @@ namespace InventoryService.Consumers
                         product.Quantity -= item.Quantity;
                         product.UpdatedAt = DateTime.UtcNow;
 
-                        _logger.LogInformation($"[Stock Deducted] Order #{eventData.OrderNumber} | {product.Name} ({product.SKU}) | {oldQty} -> {product.Quantity}");
+                        // Publish COGS Event for Accounting with actual cost
+                        var cogsEvent = new StockDeductedEvent
+                        {
+                            OrderId = eventData.OrderId,
+                            OrderNumber = eventData.OrderNumber,
+                            ProductSku = product.SKU,
+                            ProductName = product.Name,
+                            QuantityDeducted = item.Quantity,
+                            UnitCost = product.CostPrice > 0 ? product.CostPrice : product.Price * 0.60m, // Use actual cost or estimate
+                            TotalCost = (product.CostPrice > 0 ? product.CostPrice : product.Price * 0.60m) * item.Quantity
+                        };
+
+                        producer.PublishEvent(cogsEvent, "inventory.cogs.events");
+
+                        _logger.LogInformation($"[Stock Deducted] Order #{eventData.OrderNumber} | {product.Name} ({product.SKU}) | {oldQty} -> {product.Quantity} | COGS: {cogsEvent.TotalCost:C}");
                     }
                     else
                     {

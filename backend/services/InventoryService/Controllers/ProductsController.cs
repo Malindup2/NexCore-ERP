@@ -35,6 +35,7 @@ namespace InventoryService.Controllers
                 SKU = request.SKU,
                 Description = request.Description,
                 Price = request.Price,
+                CostPrice = request.CostPrice,
                 Quantity = request.Quantity,
                 CreatedAt = DateTime.UtcNow
             };
@@ -57,6 +58,23 @@ namespace InventoryService.Controllers
             var product = await _context.Products.FindAsync(id);
             if (product == null) return NotFound();
             return Ok(product);
+        }
+
+        // Check Stock Availability by SKU
+        [HttpGet("check-stock/{sku}")]
+        public async Task<IActionResult> CheckStock(string sku)
+        {
+            var product = await _context.Products.FirstOrDefaultAsync(p => p.SKU == sku);
+            if (product == null) 
+                return NotFound(new { Available = false, Message = $"Product with SKU '{sku}' not found" });
+            
+            return Ok(new { 
+                Available = product.Quantity > 0, 
+                SKU = product.SKU,
+                ProductName = product.Name,
+                CurrentStock = product.Quantity,
+                ReorderLevel = product.ReorderLevel
+            });
         }
 
         //  Adjust Stock & Publish Event
