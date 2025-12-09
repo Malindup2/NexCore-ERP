@@ -36,7 +36,8 @@ namespace SalesService.Data
             // Configure relationships
             modelBuilder.Entity<SalesOrder>()
                 .HasMany(so => so.Items)
-                .WithOne()
+                .WithOne(soi => soi.SalesOrder)
+                .HasForeignKey(soi => soi.SalesOrderId)
                 .OnDelete(DeleteBehavior.Cascade);
         }
     }
