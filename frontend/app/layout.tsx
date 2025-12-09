@@ -3,6 +3,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/app-sidebar";
+import { ThemeToggle } from "@/components/theme-toggle";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -32,11 +33,12 @@ export default function RootLayout({
         <SidebarProvider>
           <AppSidebar />
           <main className="w-full flex flex-col">
-            <header className="sticky top-0 z-10 flex h-16 items-center gap-4 border-b bg-background px-6">
+            <header className="sticky top-0 z-10 flex h-16 items-center gap-4 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 px-6">
               <SidebarTrigger />
               <div className="flex-1">
                 <h2 className="text-lg font-semibold">NexCore ERP</h2>
               </div>
+              <ThemeToggle />
             </header>
             <div className="flex-1">
               {children}
