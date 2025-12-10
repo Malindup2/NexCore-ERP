@@ -1,10 +1,12 @@
-import type { Metadata } from "next";
+"use client";
+
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import "./typography-utils.css";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/app-sidebar";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { usePathname } from "next/navigation";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -18,39 +20,59 @@ const geistMono = Geist_Mono({
   weight: ["400", "500", "600", "700"],
 });
 
-export const metadata: Metadata = {
-  title: "NexCore ERP",
-  description: "Enterprise Resource Planning System",
-};
-
 import { HeaderDateTime } from "@/components/header-date-time";
+import { UserMenu } from "@/components/user-menu";
+import { ProtectedRoute } from "@/components/protected-route";
+import { Toaster } from "sonner";
+import { LoadingScreen } from "@/components/loading-screen";
 
 export default function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const pathname = usePathname();
+  const isAuthPage = pathname?.startsWith("/auth");
+
   return (
     <html lang="en">
+      <head>
+        <link rel="icon" href="/assets/logo.png" type="image/png" />
+        <link rel="apple-touch-icon" href="/assets/logo.png" />
+        <title>NexCore ERP - Enterprise Resource Planning</title>
+        <meta name="description" content="Streamline your business operations with NexCore ERP" />
+      </head>
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
-        <SidebarProvider>
-          <AppSidebar />
-          <main className="w-full flex flex-col">
-            <header className="sticky top-0 z-10 flex h-16 items-center gap-4 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 px-6">
-              <SidebarTrigger />
-              <div className="flex-1">
-                <h2 className="text-lg font-semibold">NexCore ERP</h2>
-              </div>
-              <HeaderDateTime />
-              <ThemeToggle />
-            </header>
-            <div className="flex-1">
-              {children}
-            </div>
-          </main>
-        </SidebarProvider>
+        <LoadingScreen />
+        <Toaster position="top-right" richColors />
+        <ProtectedRoute>
+          {isAuthPage ? (
+            // Auth pages - no ERP UI
+            <>{children}</>
+          ) : (
+            // ERP Dashboard - full UI
+            <SidebarProvider>
+              <AppSidebar />
+              <main className="w-full flex flex-col">
+              <header className="sticky top-0 z-10 flex h-16 items-center gap-4 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 px-6">
+                <SidebarTrigger />
+                <div className="flex-1 flex items-center gap-2">
+                  <img src="/assets/logo.png" alt="NexCore ERP" className="h-8 w-8" />
+                  <h2 className="text-lg font-semibold">NexCore ERP</h2>
+                </div>
+                  <HeaderDateTime />
+                  <UserMenu />
+                  <ThemeToggle />
+                </header>
+                <div className="flex-1">
+                  {children}
+                </div>
+              </main>
+            </SidebarProvider>
+          )}
+        </ProtectedRoute>
       </body>
     </html>
   );

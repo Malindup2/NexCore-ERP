@@ -25,23 +25,22 @@ export default function ForgotPasswordPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800 p-4">
-      <Card className="w-full max-w-md">
-        <CardHeader className="space-y-1">
-          <div className="flex items-center justify-center mb-4">
-            <div className="h-12 w-12 rounded-lg bg-primary flex items-center justify-center text-primary-foreground text-xl font-bold">
-              NC
-            </div>
+    <Card className="w-full border-0 shadow-lg">
+      <CardHeader className="space-y-1">
+        <div className="flex items-center justify-center mb-4 lg:hidden">
+          <div className="h-12 w-12 rounded-lg bg-primary flex items-center justify-center text-primary-foreground text-xl font-bold">
+            NC
           </div>
-          <CardTitle className="text-2xl text-center">
-            {isSubmitted ? "Check your email" : "Forgot password?"}
-          </CardTitle>
-          <CardDescription className="text-center">
-            {isSubmitted 
-              ? "We've sent you a password reset link" 
-              : "Enter your email address and we'll send you a reset link"}
-          </CardDescription>
-        </CardHeader>
+        </div>
+        <CardTitle className="text-2xl text-center">
+          {isSubmitted ? "Check your email" : "Forgot password?"}
+        </CardTitle>
+        <CardDescription className="text-center">
+          {isSubmitted 
+            ? "We've sent you a password reset link" 
+            : "Enter your email address and we'll send you a reset link"}
+        </CardDescription>
+      </CardHeader>
         {!isSubmitted ? (
           <form onSubmit={handleSubmit}>
             <CardContent className="space-y-4">
@@ -91,6 +90,5 @@ export default function ForgotPasswordPage() {
           </CardFooter>
         )}
       </Card>
-    </div>
   )
 }
