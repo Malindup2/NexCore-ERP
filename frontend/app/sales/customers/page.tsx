@@ -21,10 +21,10 @@ interface Customer {
 }
 
 const mockCustomers: Customer[] = [
-  { id: 1, name: "Olivia Martin", email: "olivia.martin@email.com", phone: "+1234567890", address: "123 Main St, New York", totalOrders: 12, totalSpent: 15420 },
-  { id: 2, name: "Jackson Lee", email: "jackson.lee@email.com", phone: "+1234567891", address: "456 Oak Ave, Boston", totalOrders: 8, totalSpent: 9340 },
-  { id: 3, name: "Isabella Nguyen", email: "isabella.nguyen@email.com", phone: "+1234567892", address: "789 Pine Rd, Chicago", totalOrders: 15, totalSpent: 23100 },
-  { id: 4, name: "William Kim", email: "william.kim@email.com", phone: "+1234567893", address: "321 Elm St, Seattle", totalOrders: 5, totalSpent: 6780 },
+  { id: 1, name: "Nuwan Perera", email: "nuwan.perera@email.lk", phone: "+94771234567", address: "123 Galle Road, Colombo 03", totalOrders: 12, totalSpent: 5088600 },
+  { id: 2, name: "Chamari Silva", email: "chamari.silva@email.lk", phone: "+94712345678", address: "456 Kandy Road, Kandy", totalOrders: 8, totalSpent: 3082200 },
+  { id: 3, name: "Kasun Fernando", email: "kasun.fernando@email.lk", phone: "+94767891234", address: "789 Station Road, Negombo", totalOrders: 15, totalSpent: 7623000 },
+  { id: 4, name: "Dilini Rajapakse", email: "dilini.r@email.lk", phone: "+94723456789", address: "321 Beach Road, Galle", totalOrders: 5, totalSpent: 2237400 },
 ]
 
 export default function CustomersPage() {
@@ -109,7 +109,7 @@ export default function CustomersPage() {
             <Phone className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">${customers.reduce((sum, c) => sum + c.totalSpent, 0).toLocaleString()}</div>
+            <div className="text-2xl font-bold">LKR {customers.reduce((sum, c) => sum + c.totalSpent, 0).toLocaleString()}</div>
             <p className="text-xs text-muted-foreground">From all customers</p>
           </CardContent>
         </Card>
@@ -163,7 +163,7 @@ export default function CustomersPage() {
                   </TableCell>
                   <TableCell>{customer.address}</TableCell>
                   <TableCell className="text-right">{customer.totalOrders}</TableCell>
-                  <TableCell className="text-right font-semibold">${customer.totalSpent.toLocaleString()}</TableCell>
+                  <TableCell className="text-right font-semibold">LKR {customer.totalSpent.toLocaleString()}</TableCell>
                   <TableCell className="text-right">
                     <Button variant="ghost" size="sm">View Details</Button>
                   </TableCell>

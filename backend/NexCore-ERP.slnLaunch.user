@@ -3,35 +3,11 @@
     "Name": "New Profile",
     "Projects": [
       {
-        "Path": "services\\SalesService\\SalesService.csproj",
-        "Action": "Start"
-      },
-      {
-        "Path": "services\\AccountingService\\AccountingService.csproj",
-        "Action": "Start"
-      },
-      {
-        "Path": "services\\InventoryService\\InventoryService.csproj",
-        "Action": "Start"
-      },
-      {
-        "Path": "services\\ProcurementService\\ProcurementService.csproj",
-        "Action": "Start"
-      },
-      {
         "Path": "gateway\\ApiGateway\\ApiGateway.csproj",
         "Action": "Start"
       },
       {
         "Path": "services\\AuthService\\AuthService.csproj",
-        "Action": "Start"
-      },
-      {
-        "Path": "services\\HRService\\HRService.csproj",
-        "Action": "Start"
-      },
-      {
-        "Path": "services\\PayrollService\\PayrollService.csproj",
         "Action": "Start"
       }
     ]

@@ -19,10 +19,10 @@ interface PurchaseOrder {
 }
 
 const mockPurchaseOrders: PurchaseOrder[] = [
-  { id: 1, orderNumber: "PO-2025-001", supplier: "Tech Supplies Inc.", orderDate: "2025-12-08", status: "Approved", totalAmount: 15420, items: 5 },
-  { id: 2, orderNumber: "PO-2025-002", supplier: "Office Pro Ltd.", orderDate: "2025-12-07", status: "Received", totalAmount: 9340, items: 3 },
-  { id: 3, orderNumber: "PO-2025-003", supplier: "Global Electronics", orderDate: "2025-12-06", status: "Pending", totalAmount: 23100, items: 8 },
-  { id: 4, orderNumber: "PO-2025-004", supplier: "Tech Supplies Inc.", orderDate: "2025-12-05", status: "Approved", totalAmount: 6780, items: 2 },
+  { id: 1, orderNumber: "PO-2025-001", supplier: "Lanka Tech Solutions (Pvt) Ltd", orderDate: "2025-12-08", status: "Approved", totalAmount: 5088600, items: 5 },
+  { id: 2, orderNumber: "PO-2025-002", supplier: "Ceylon Office Supplies", orderDate: "2025-12-07", status: "Received", totalAmount: 3082200, items: 3 },
+  { id: 3, orderNumber: "PO-2025-003", supplier: "Global Electronics Lanka", orderDate: "2025-12-06", status: "Pending", totalAmount: 7623000, items: 8 },
+  { id: 4, orderNumber: "PO-2025-004", supplier: "Lanka Tech Solutions (Pvt) Ltd", orderDate: "2025-12-05", status: "Approved", totalAmount: 2237400, items: 2 },
 ]
 
 export default function PurchaseOrdersPage() {
@@ -76,7 +76,7 @@ export default function PurchaseOrdersPage() {
             <TrendingUp className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">${totalSpent.toLocaleString()}</div>
+            <div className="text-2xl font-bold">LKR {totalSpent.toLocaleString()}</div>
             <p className="text-xs text-muted-foreground">On procurement</p>
           </CardContent>
         </Card>
@@ -86,7 +86,7 @@ export default function PurchaseOrdersPage() {
             <TrendingUp className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">${(totalSpent / orders.filter(o => o.status !== "Cancelled").length).toFixed(2)}</div>
+            <div className="text-2xl font-bold">LKR {(totalSpent / orders.filter(o => o.status !== "Cancelled").length).toFixed(2)}</div>
             <p className="text-xs text-muted-foreground">Per order</p>
           </CardContent>
         </Card>
@@ -133,7 +133,7 @@ export default function PurchaseOrdersPage() {
                   <TableCell>{order.supplier}</TableCell>
                   <TableCell>{new Date(order.orderDate).toLocaleDateString()}</TableCell>
                   <TableCell className="text-right">{order.items}</TableCell>
-                  <TableCell className="text-right font-semibold">${order.totalAmount.toFixed(2)}</TableCell>
+                  <TableCell className="text-right font-semibold">LKR {order.totalAmount.toLocaleString()}</TableCell>
                   <TableCell>
                     <Badge 
                       variant={

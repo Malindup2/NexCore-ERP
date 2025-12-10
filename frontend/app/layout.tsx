@@ -58,14 +58,11 @@ export default function RootLayout({
               <main className="w-full flex flex-col">
               <header className="sticky top-0 z-10 flex h-16 items-center gap-4 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 px-6">
                 <SidebarTrigger />
-                <div className="flex-1 flex items-center gap-2">
-                  <img src="/assets/logo.png" alt="NexCore ERP" className="h-8 w-8" />
-                  <h2 className="text-lg font-semibold">NexCore ERP</h2>
-                </div>
-                  <HeaderDateTime />
-                  <UserMenu />
-                  <ThemeToggle />
-                </header>
+                <div className="flex-1" />
+                <HeaderDateTime />
+                <UserMenu />
+                <ThemeToggle />
+              </header>
                 <div className="flex-1">
                   {children}
                 </div>

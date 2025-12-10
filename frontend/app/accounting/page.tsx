@@ -26,20 +26,20 @@ interface Transaction {
 }
 
 const mockAccounts: Account[] = [
-  { id: 1, accountCode: "1000", name: "Cash", type: "Asset", balance: 125000 },
-  { id: 2, accountCode: "1200", name: "Accounts Receivable", type: "Asset", balance: 45000 },
-  { id: 3, accountCode: "1500", name: "Inventory", type: "Asset", balance: 87500 },
-  { id: 4, accountCode: "2000", name: "Accounts Payable", type: "Liability", balance: 32000 },
-  { id: 5, accountCode: "3000", name: "Owner's Equity", type: "Equity", balance: 150000 },
-  { id: 6, accountCode: "4000", name: "Sales Revenue", type: "Revenue", balance: 245000 },
-  { id: 7, accountCode: "5000", name: "Operating Expenses", type: "Expense", balance: 78000 },
+  { id: 1, accountCode: "1000", name: "Cash", type: "Asset", balance: 41250000 },
+  { id: 2, accountCode: "1200", name: "Accounts Receivable", type: "Asset", balance: 14850000 },
+  { id: 3, accountCode: "1500", name: "Inventory", type: "Asset", balance: 28875000 },
+  { id: 4, accountCode: "2000", name: "Accounts Payable", type: "Liability", balance: 10560000 },
+  { id: 5, accountCode: "3000", name: "Owner's Equity", type: "Equity", balance: 49500000 },
+  { id: 6, accountCode: "4000", name: "Sales Revenue", type: "Revenue", balance: 80850000 },
+  { id: 7, accountCode: "5000", name: "Operating Expenses", type: "Expense", balance: 25740000 },
 ]
 
 const mockTransactions: Transaction[] = [
-  { id: 1, date: "2025-12-08", description: "Customer Payment", debit: 5000, credit: 0, account: "Cash" },
-  { id: 2, date: "2025-12-08", description: "Sales Invoice #001", debit: 0, credit: 5000, account: "Sales Revenue" },
-  { id: 3, date: "2025-12-07", description: "Office Supplies", debit: 250, credit: 0, account: "Operating Expenses" },
-  { id: 4, date: "2025-12-07", description: "Supplier Payment", debit: 0, credit: 250, account: "Cash" },
+  { id: 1, date: "2025-12-08", description: "Customer Payment", debit: 1650000, credit: 0, account: "Cash" },
+  { id: 2, date: "2025-12-08", description: "Sales Invoice #001", debit: 0, credit: 1650000, account: "Sales Revenue" },
+  { id: 3, date: "2025-12-07", description: "Office Supplies", debit: 82500, credit: 0, account: "Operating Expenses" },
+  { id: 4, date: "2025-12-07", description: "Supplier Payment", debit: 0, credit: 82500, account: "Cash" },
 ]
 
 export default function AccountingPage() {
@@ -69,7 +69,7 @@ export default function AccountingPage() {
             <Wallet className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">${totalAssets.toLocaleString()}</div>
+            <div className="text-2xl font-bold">LKR {totalAssets.toLocaleString()}</div>
             <p className="text-xs text-muted-foreground">Current asset value</p>
           </CardContent>
         </Card>
@@ -79,7 +79,7 @@ export default function AccountingPage() {
             <TrendingDown className="h-4 w-4 text-red-500" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-red-500">${totalLiabilities.toLocaleString()}</div>
+            <div className="text-2xl font-bold text-red-500">LKR {totalLiabilities.toLocaleString()}</div>
             <p className="text-xs text-muted-foreground">Outstanding liabilities</p>
           </CardContent>
         </Card>
@@ -89,7 +89,7 @@ export default function AccountingPage() {
             <TrendingUp className="h-4 w-4 text-green-500" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-green-500">${totalRevenue.toLocaleString()}</div>
+            <div className="text-2xl font-bold text-green-500">LKR {totalRevenue.toLocaleString()}</div>
             <p className="text-xs text-muted-foreground">Year to date</p>
           </CardContent>
         </Card>
@@ -99,7 +99,7 @@ export default function AccountingPage() {
             <DollarSign className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">${netIncome.toLocaleString()}</div>
+            <div className="text-2xl font-bold">LKR {netIncome.toLocaleString()}</div>
             <p className="text-xs text-muted-foreground">Revenue - Expenses</p>
           </CardContent>
         </Card>
@@ -145,7 +145,7 @@ export default function AccountingPage() {
                         </Badge>
                       </TableCell>
                       <TableCell className="text-right font-semibold">
-                        ${account.balance.toLocaleString()}
+                        LKR {account.balance.toLocaleString()}
                       </TableCell>
                     </TableRow>
                   ))}

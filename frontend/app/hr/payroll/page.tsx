@@ -19,11 +19,11 @@ interface PayrollRecord {
 }
 
 const mockPayroll: PayrollRecord[] = [
-  { id: 1, employeeName: "John Doe", month: "December 2025", baseSalary: 5000, deductions: 500, netSalary: 4500, status: "Pending" },
-  { id: 2, employeeName: "Jane Smith", month: "December 2025", baseSalary: 6000, deductions: 600, netSalary: 5400, status: "Pending" },
-  { id: 3, employeeName: "Mike Johnson", month: "December 2025", baseSalary: 4500, deductions: 450, netSalary: 4050, status: "Pending" },
-  { id: 4, employeeName: "John Doe", month: "November 2025", baseSalary: 5000, deductions: 500, netSalary: 4500, status: "Paid" },
-  { id: 5, employeeName: "Jane Smith", month: "November 2025", baseSalary: 6000, deductions: 600, netSalary: 5400, status: "Paid" },
+  { id: 1, employeeName: "Nuwan Perera", month: "December 2025", baseSalary: 150000, deductions: 15000, netSalary: 135000, status: "Pending" },
+  { id: 2, employeeName: "Chamari Silva", month: "December 2025", baseSalary: 180000, deductions: 18000, netSalary: 162000, status: "Pending" },
+  { id: 3, employeeName: "Kasun Fernando", month: "December 2025", baseSalary: 120000, deductions: 12000, netSalary: 108000, status: "Pending" },
+  { id: 4, employeeName: "Nuwan Perera", month: "November 2025", baseSalary: 150000, deductions: 15000, netSalary: 135000, status: "Paid" },
+  { id: 5, employeeName: "Chamari Silva", month: "November 2025", baseSalary: 180000, deductions: 18000, netSalary: 162000, status: "Paid" },
 ]
 
 export default function PayrollPage() {
@@ -63,7 +63,7 @@ export default function PayrollPage() {
             <DollarSign className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">${totalPayroll.toLocaleString()}</div>
+            <div className="text-2xl font-bold">LKR {totalPayroll.toLocaleString()}</div>
             <p className="text-xs text-muted-foreground">For selected period</p>
           </CardContent>
         </Card>
@@ -127,9 +127,9 @@ export default function PayrollPage() {
                 <TableRow key={record.id}>
                   <TableCell className="font-medium">{record.employeeName}</TableCell>
                   <TableCell>{record.month}</TableCell>
-                  <TableCell className="text-right">${record.baseSalary.toLocaleString()}</TableCell>
-                  <TableCell className="text-right text-red-500">-${record.deductions.toLocaleString()}</TableCell>
-                  <TableCell className="text-right font-semibold">${record.netSalary.toLocaleString()}</TableCell>
+                  <TableCell className="text-right">LKR {record.baseSalary.toLocaleString()}</TableCell>
+                  <TableCell className="text-right text-red-500">-LKR {record.deductions.toLocaleString()}</TableCell>
+                  <TableCell className="text-right font-semibold">LKR {record.netSalary.toLocaleString()}</TableCell>
                   <TableCell>
                     <Badge 
                       variant={

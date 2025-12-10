@@ -19,11 +19,11 @@ interface SalesOrder {
 }
 
 const mockOrders: SalesOrder[] = [
-  { id: 1, orderNumber: "SO-2025-001", customer: "Olivia Martin", orderDate: "2025-12-08", status: "Confirmed", totalAmount: 1999.00, items: 3 },
-  { id: 2, orderNumber: "SO-2025-002", customer: "Jackson Lee", orderDate: "2025-12-07", status: "Shipped", totalAmount: 39.00, items: 1 },
-  { id: 3, orderNumber: "SO-2025-003", customer: "Isabella Nguyen", orderDate: "2025-12-06", status: "Pending", totalAmount: 299.00, items: 2 },
-  { id: 4, orderNumber: "SO-2025-004", customer: "William Kim", orderDate: "2025-12-05", status: "Confirmed", totalAmount: 99.00, items: 1 },
-  { id: 5, orderNumber: "SO-2025-005", customer: "Olivia Martin", orderDate: "2025-12-04", status: "Cancelled", totalAmount: 450.00, items: 2 },
+  { id: 1, orderNumber: "SO-2025-001", customer: "Nuwan Perera", orderDate: "2025-12-08", status: "Confirmed", totalAmount: 659670, items: 3 },
+  { id: 2, orderNumber: "SO-2025-002", customer: "Chamari Silva", orderDate: "2025-12-07", status: "Shipped", totalAmount: 12870, items: 1 },
+  { id: 3, orderNumber: "SO-2025-003", customer: "Kasun Fernando", orderDate: "2025-12-06", status: "Pending", totalAmount: 98670, items: 2 },
+  { id: 4, orderNumber: "SO-2025-004", customer: "Dilini Rajapakse", orderDate: "2025-12-05", status: "Confirmed", totalAmount: 32670, items: 1 },
+  { id: 5, orderNumber: "SO-2025-005", customer: "Nuwan Perera", orderDate: "2025-12-04", status: "Cancelled", totalAmount: 148500, items: 2 },
 ]
 
 export default function SalesOrdersPage() {
@@ -77,7 +77,7 @@ export default function SalesOrdersPage() {
             <DollarSign className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">${totalRevenue.toLocaleString()}</div>
+            <div className="text-2xl font-bold">LKR {totalRevenue.toLocaleString()}</div>
             <p className="text-xs text-muted-foreground">From completed orders</p>
           </CardContent>
         </Card>
@@ -87,7 +87,7 @@ export default function SalesOrdersPage() {
             <DollarSign className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">${(totalRevenue / orders.filter(o => o.status !== "Cancelled").length).toFixed(2)}</div>
+            <div className="text-2xl font-bold">LKR {(totalRevenue / orders.filter(o => o.status !== "Cancelled").length).toFixed(2)}</div>
             <p className="text-xs text-muted-foreground">Per order</p>
           </CardContent>
         </Card>
@@ -134,7 +134,7 @@ export default function SalesOrdersPage() {
                   <TableCell>{order.customer}</TableCell>
                   <TableCell>{new Date(order.orderDate).toLocaleDateString()}</TableCell>
                   <TableCell className="text-right">{order.items}</TableCell>
-                  <TableCell className="text-right font-semibold">${order.totalAmount.toFixed(2)}</TableCell>
+                  <TableCell className="text-right font-semibold">LKR {order.totalAmount.toLocaleString()}</TableCell>
                   <TableCell>
                     <Badge 
                       variant={

@@ -24,11 +24,11 @@ interface Employee {
 }
 
 const mockEmployees: Employee[] = [
-  { id: 1, firstName: "John", lastName: "Doe", email: "john.doe@nexcore.com", phone: "+1234567890", department: "Engineering", designation: "Senior Developer", joiningDate: "2023-01-15", isActive: true },
-  { id: 2, firstName: "Jane", lastName: "Smith", email: "jane.smith@nexcore.com", phone: "+1234567891", department: "Marketing", designation: "Marketing Manager", joiningDate: "2023-03-20", isActive: true },
-  { id: 3, firstName: "Mike", lastName: "Johnson", email: "mike.johnson@nexcore.com", phone: "+1234567892", department: "Sales", designation: "Sales Executive", joiningDate: "2023-05-10", isActive: true },
-  { id: 4, firstName: "Sarah", lastName: "Williams", email: "sarah.williams@nexcore.com", phone: "+1234567893", department: "HR", designation: "HR Manager", joiningDate: "2022-11-05", isActive: true },
-  { id: 5, firstName: "David", lastName: "Brown", email: "david.brown@nexcore.com", phone: "+1234567894", department: "Finance", designation: "Accountant", joiningDate: "2023-07-12", isActive: false },
+  { id: 1, firstName: "Nuwan", lastName: "Perera", email: "nuwan.perera@nexcore.lk", phone: "+94771234567", department: "Engineering", designation: "Senior Developer", joiningDate: "2023-01-15", isActive: true },
+  { id: 2, firstName: "Chamari", lastName: "Silva", email: "chamari.silva@nexcore.lk", phone: "+94712345678", department: "Marketing", designation: "Marketing Manager", joiningDate: "2023-03-20", isActive: true },
+  { id: 3, firstName: "Kasun", lastName: "Fernando", email: "kasun.fernando@nexcore.lk", phone: "+94767891234", department: "Sales", designation: "Sales Executive", joiningDate: "2023-05-10", isActive: true },
+  { id: 4, firstName: "Dilini", lastName: "Rajapakse", email: "dilini.rajapakse@nexcore.lk", phone: "+94723456789", department: "HR", designation: "HR Manager", joiningDate: "2022-11-05", isActive: true },
+  { id: 5, firstName: "Tharindu", lastName: "Wickramasinghe", email: "tharindu.w@nexcore.lk", phone: "+94778901234", department: "Finance", designation: "Accountant", joiningDate: "2023-07-12", isActive: false },
 ]
 
 export default function EmployeesPage() {

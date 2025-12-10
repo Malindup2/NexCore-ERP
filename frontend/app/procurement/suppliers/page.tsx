@@ -19,9 +19,9 @@ interface Supplier {
 }
 
 const mockSuppliers: Supplier[] = [
-  { id: 1, name: "Tech Supplies Inc.", email: "contact@techsupplies.com", phone: "+1234567890", address: "789 Tech Park, Silicon Valley", totalPurchases: 45 },
-  { id: 2, name: "Office Pro Ltd.", email: "sales@officepro.com", phone: "+1234567891", address: "456 Business Ave, New York", totalPurchases: 32 },
-  { id: 3, name: "Global Electronics", email: "info@globalelec.com", phone: "+1234567892", address: "321 Trade St, Chicago", totalPurchases: 58 },
+  { id: 1, name: "Lanka Tech Solutions (Pvt) Ltd", email: "contact@lankatech.lk", phone: "+94112345678", address: "789 Union Place, Colombo 02", totalPurchases: 45 },
+  { id: 2, name: "Ceylon Office Supplies", email: "sales@ceylonoffice.lk", phone: "+94113456789", address: "456 Ward Place, Colombo 07", totalPurchases: 32 },
+  { id: 3, name: "Global Electronics Lanka", email: "info@globalelec.lk", phone: "+94114567890", address: "321 Baudhaloka Mawatha, Colombo 04", totalPurchases: 58 },
 ]
 
 export default function SuppliersPage() {
