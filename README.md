@@ -1,5 +1,9 @@
 # NexCore ERP
 
+<img width="1895" height="825" alt="Screenshot 2025-12-10 154936" src="https://github.com/user-attachments/assets/056d62fd-ae5c-433e-9961-959a2fd610cb" />
+<img width="1890" height="835" alt="Screenshot 2025-12-10 154916" src="https://github.com/user-attachments/assets/60dc1e65-0f38-4604-b1ab-98ecef73d92c" />
+<img width="1895" height="849" alt="Screenshot 2025-12-10 155207" src="https://github.com/user-attachments/assets/47b5eff9-fa9d-412c-a843-b5b2885964d1" />
+
 A comprehensive Enterprise Resource Planning system built with modern microservices architecture, featuring a Next.js frontend and .NET backend services.
 
 ## Overview
