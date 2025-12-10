@@ -1,5 +1,5 @@
 // API Configuration
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5166';
 
 export const API_ENDPOINTS = {
   auth: {
@@ -40,7 +40,7 @@ export async function apiRequest<T>(
   options: RequestInit = {}
 ): Promise<T> {
   const token = localStorage.getItem('auth_token');
-  
+
   const headers: HeadersInit = {
     'Content-Type': 'application/json',
     ...(token && { Authorization: `Bearer ${token}` }),

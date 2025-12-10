@@ -9,6 +9,18 @@ builder.Services.AddDbContext<AuthDbContext>(options =>
     options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
 
 builder.Services.AddScoped<JwtTokenGenerator>();
+
+//CORS
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("AllowAll", policy =>
+    {
+        policy.AllowAnyOrigin()
+              .AllowAnyMethod()
+              .AllowAnyHeader();
+    });
+});
+
 // controllers
 builder.Services.AddControllers();
 
@@ -18,6 +30,8 @@ builder.Services.AddSwaggerGen();
 
 var app = builder.Build();
 
+// Use CORS
+app.UseCors("AllowAll");
 
 app.UseSwagger();
 app.UseSwaggerUI();
