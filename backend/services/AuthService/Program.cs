@@ -9,6 +9,7 @@ builder.Services.AddDbContext<AuthDbContext>(options =>
     options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
 
 builder.Services.AddScoped<JwtTokenGenerator>();
+builder.Services.AddScoped<IEmailService, EmailService>();
 
 //CORS
 builder.Services.AddCors(options =>
