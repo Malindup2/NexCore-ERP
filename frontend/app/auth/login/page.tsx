@@ -7,10 +7,9 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
-import { authApi, ApiError } from "@/lib/api"
-import { toast } from "sonner"
-import { Alert, AlertDescription } from "@/components/ui/alert"
-import { AlertCircle, Loader2, Mail, Lock, ArrowRight } from "lucide-react"
+import { setAuthData } from "@/lib/auth"
+
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5166"
 
 export default function LoginPage() {
   const router = useRouter()
@@ -25,30 +24,26 @@ export default function LoginPage() {
     setError("")
     
     try {
-      const response = await authApi.login({ email, password })
-      
-      // Store token and user info
-      localStorage.setItem('auth_token', response.token)
-      localStorage.setItem('auth_user', JSON.stringify({ email }))
-      
-      toast.success("Login successful!", {
-        description: "Redirecting to dashboard..."
+      const response = await fetch(`${API_BASE_URL}/api/auth/login`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password })
       })
+
+      if (!response.ok) {
+        const errorText = await response.text()
+        throw new Error(errorText || "Login failed")
+      }
+
+      const data = await response.json()
+      
+      // Store token and user data
+      setAuthData(data.Token || data.token, data.User || data.user)
       
       // Redirect to dashboard
-      setTimeout(() => router.push("/"), 500)
-    } catch (err) {
-      if (err instanceof ApiError) {
-        toast.error("Login failed", {
-          description: err.message || "Invalid credentials"
-        })
-        setError(err.message || "Invalid credentials")
-      } else {
-        toast.error("Login failed", {
-          description: "An error occurred. Please try again."
-        })
-        setError("An error occurred. Please try again.")
-      }
+      router.push("/")
+    } catch (err: any) {
+      setError(err.message || "Invalid email or password")
     } finally {
       setIsLoading(false)
     }
@@ -114,22 +109,15 @@ export default function LoginPage() {
                 />
               </div>
             </div>
-            <Button 
-              type="submit" 
-              className="w-full h-11 text-base font-medium shadow-lg shadow-primary/20 hover:shadow-primary/30 transition-all mt-2" 
-              disabled={isLoading}
-            >
-              {isLoading ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Signing in...
-                </>
-              ) : (
-                <>
-                  Sign in
-                  <ArrowRight className="ml-2 h-4 w-4" />
-                </>
-              )}
+            {error && (
+              <div className="text-sm text-red-600 bg-red-50 p-3 rounded-md">
+                {error}
+              </div>
+            )}
+          </CardContent>
+          <CardFooter className="flex flex-col space-y-4">
+            <Button type="submit" className="w-full" disabled={isLoading}>
+              {isLoading ? "Signing in..." : "Sign in"}
             </Button>
           </CardContent>
           <CardFooter className="flex flex-col space-y-4 px-8 pb-8 pt-2 text-center">
@@ -141,6 +129,15 @@ export default function LoginPage() {
               >
                 Create an account
               </Link>
+            </p>
+            <div className="mt-4 p-4 bg-blue-50 rounded-md text-left">
+              <p className="text-xs font-semibold text-blue-900 mb-2">Demo Credentials:</p>
+              <p className="text-xs text-blue-700">
+                <strong>Admin:</strong> admin@nexcore.lk / Admin@123
+              </p>
+              <p className="text-xs text-blue-700 mt-1">
+                <strong>Or register</strong> as an employee to test the system
+              </p>
             </div>
           </CardFooter>
         </form>

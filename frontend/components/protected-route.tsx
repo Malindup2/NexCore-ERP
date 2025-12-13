@@ -1,38 +1,60 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { useRouter, usePathname } from "next/navigation"
+import { useRouter } from "next/navigation"
+import { getUser, hasRole } from "@/lib/auth"
 
-export function ProtectedRoute({ children }: { children: React.ReactNode }) {
+interface ProtectedRouteProps {
+  children: React.ReactNode
+  requiredRoles?: string[]
+  redirectTo?: string
+}
+
+export function ProtectedRoute({ 
+  children, 
+  requiredRoles = [], 
+  redirectTo = "/auth/login" 
+}: ProtectedRouteProps) {
   const router = useRouter()
-  const pathname = usePathname()
+  const [isAuthorized, setIsAuthorized] = useState(false)
   const [isChecking, setIsChecking] = useState(true)
 
   useEffect(() => {
-    const token = localStorage.getItem('auth_token')
-    
-    // Public routes that don't require authentication
-    const publicRoutes = ['/auth/login', '/auth/register', '/auth/forgot-password']
-    const isPublicRoute = publicRoutes.includes(pathname)
+    const checkAuth = () => {
+      const user = getUser()
+      
+      // Check if user is logged in
+      if (!user) {
+        router.push(redirectTo)
+        return
+      }
 
-    if (!token && !isPublicRoute) {
-      // No token and trying to access protected route - redirect to login
-      router.push('/auth/login')
-    } else if (token && isPublicRoute) {
-      // Has token but on auth page - redirect to dashboard
-      router.push('/')
-    } else {
+      // Check if user has required role (if specified)
+      if (requiredRoles.length > 0 && !hasRole(requiredRoles)) {
+        router.push("/unauthorized")
+        return
+      }
+
+      setIsAuthorized(true)
       setIsChecking(false)
     }
-  }, [pathname, router])
 
-  // Show loading state while checking authentication
+    checkAuth()
+  }, [router, requiredRoles, redirectTo])
+
   if (isChecking) {
     return (
       <div className="flex items-center justify-center min-h-screen">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+          <p className="text-muted-foreground">Checking permissions...</p>
+        </div>
       </div>
     )
+  }
+
+  if (!isAuthorized) {
+    return null
   }
 
   return <>{children}</>

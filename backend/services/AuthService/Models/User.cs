@@ -10,6 +10,17 @@
 
         public string PasswordHash { get; set; } = string.Empty;
 
+        public string Role { get; set; } = UserRoles.Employee;
+
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+    }
+
+    public static class UserRoles
+    {
+        public const string Admin = "Admin";
+        public const string HRManager = "HRManager";
+        public const string Accountant = "Accountant";
+        public const string SalesProcurement = "SalesProcurement";
+        public const string Employee = "Employee";
     }
 }

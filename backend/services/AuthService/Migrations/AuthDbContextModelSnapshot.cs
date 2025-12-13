@@ -80,7 +80,7 @@ namespace AuthService.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("Users");
+                    b.ToTable("Users", (string)null);
                 });
 
             modelBuilder.Entity("AuthService.Models.PasswordResetToken", b =>

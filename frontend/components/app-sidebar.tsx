@@ -17,9 +17,11 @@ import {
   CreditCard,
   Bell,
   DollarSign,
-  ChevronRight
+  ChevronRight,
+  Shield
 } from "lucide-react"
 import { motion, AnimatePresence } from "framer-motion"
+import { getUser, isAdmin } from "@/lib/auth"
 
 import {
   Sidebar,
@@ -124,6 +126,34 @@ const data = {
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const pathname = usePathname();
+  const [user, setUser] = React.useState<any>(null)
+  const [showAdmin, setShowAdmin] = React.useState(false)
+
+  React.useEffect(() => {
+    const currentUser = getUser()
+    setUser(currentUser)
+    setShowAdmin(isAdmin())
+  }, [])
+
+  // Add admin menu item if user is admin
+  const navItems = React.useMemo(() => {
+    const items = [...data.navMain]
+    
+    if (showAdmin) {
+      items.unshift({
+        title: "Administration",
+        url: "/admin",
+        icon: Shield,
+        isActive: false,
+        items: [
+          { title: "Dashboard", url: "/admin" },
+          { title: "User Management", url: "/admin/users" },
+        ],
+      })
+    }
+    
+    return items
+  }, [showAdmin])
 
   return (
     <Sidebar collapsible="icon" {...props}>
@@ -138,7 +168,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         <SidebarGroup>
             <SidebarGroupLabel>Platform</SidebarGroupLabel>
             <SidebarMenu>
-                {data.navMain.map((item) => (
+                {navItems.map((item) => (
                     item.items?.length ? (
                         <Collapsible 
                             key={item.title} 
