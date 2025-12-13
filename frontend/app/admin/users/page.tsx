@@ -1,0 +1,251 @@
+"use client"
+
+import { useState, useEffect } from "react"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Badge } from "@/components/ui/badge"
+import { ProtectedRoute } from "@/components/protected-route"
+import { UserRoles } from "@/lib/auth"
+import { Plus, UserCog } from "lucide-react"
+
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5166"
+
+interface User {
+  id: number
+  username: string
+  email: string
+  role: string
+  createdAt: string
+}
+
+export default function AdminUsersPage() {
+  const [users, setUsers] = useState<User[]>([])
+  const [isDialogOpen, setIsDialogOpen] = useState(false)
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState("")
+  const [success, setSuccess] = useState("")
+  
+  const [newUser, setNewUser] = useState({
+    username: "",
+    email: "",
+    password: "",
+    role: ""
+  })
+
+  useEffect(() => {
+    fetchUsers()
+  }, [])
+
+  const fetchUsers = async () => {
+    try {
+      const token = localStorage.getItem("token")
+      const response = await fetch(`${API_BASE_URL}/api/auth/users`, {
+        headers: {
+          "Authorization": `Bearer ${token}`
+        }
+      })
+      
+      if (response.ok) {
+        const data = await response.json()
+        setUsers(data)
+      }
+    } catch (err) {
+      console.error("Failed to fetch users:", err)
+    }
+  }
+
+  const handleCreateUser = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setLoading(true)
+    setError("")
+    setSuccess("")
+
+    try {
+      const token = localStorage.getItem("token")
+      const response = await fetch(`${API_BASE_URL}/api/auth/admin/create-user`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`
+        },
+        body: JSON.stringify(newUser)
+      })
+
+      if (!response.ok) {
+        const errorText = await response.text()
+        throw new Error(errorText || "Failed to create user")
+      }
+
+      const data = await response.json()
+      setSuccess(`User ${data.user.username} created successfully!`)
+      setNewUser({ username: "", email: "", password: "", role: "" })
+      setIsDialogOpen(false)
+      fetchUsers()
+    } catch (err: any) {
+      setError(err.message || "Failed to create user")
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const getRoleBadgeColor = (role: string) => {
+    switch (role) {
+      case "Admin":
+        return "bg-red-500"
+      case "HRManager":
+        return "bg-blue-500"
+      case "Accountant":
+        return "bg-green-500"
+      case "SalesProcurement":
+        return "bg-purple-500"
+      default:
+        return "bg-gray-500"
+    }
+  }
+
+  return (
+    <ProtectedRoute requiredRoles={[UserRoles.Admin]}>
+      <div className="flex flex-1 flex-col gap-6 p-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-bold tracking-tight">User Management</h1>
+            <p className="text-muted-foreground">Create and manage system users</p>
+          </div>
+          <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+            <DialogTrigger asChild>
+              <Button>
+                <Plus className="mr-2 h-4 w-4" />
+                Create User
+              </Button>
+            </DialogTrigger>
+            <DialogContent>
+              <form onSubmit={handleCreateUser}>
+                <DialogHeader>
+                  <DialogTitle>Create New User</DialogTitle>
+                  <DialogDescription>
+                    Add a new user to the system with a specific role
+                  </DialogDescription>
+                </DialogHeader>
+                <div className="grid gap-4 py-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="username">Username</Label>
+                    <Input
+                      id="username"
+                      value={newUser.username}
+                      onChange={(e) => setNewUser({ ...newUser, username: e.target.value })}
+                      required
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="email">Email</Label>
+                    <Input
+                      id="email"
+                      type="email"
+                      value={newUser.email}
+                      onChange={(e) => setNewUser({ ...newUser, email: e.target.value })}
+                      required
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="password">Password</Label>
+                    <Input
+                      id="password"
+                      type="password"
+                      value={newUser.password}
+                      onChange={(e) => setNewUser({ ...newUser, password: e.target.value })}
+                      required
+                      minLength={6}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="role">Role</Label>
+                    <Select value={newUser.role} onValueChange={(value) => setNewUser({ ...newUser, role: value })}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select role" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="Admin">Admin - Full System Access</SelectItem>
+                        <SelectItem value="HRManager">HR Manager - HR Module</SelectItem>
+                        <SelectItem value="Accountant">Accountant - Accounting Module</SelectItem>
+                        <SelectItem value="SalesProcurement">Sales & Procurement Manager</SelectItem>
+                        <SelectItem value="Employee">Employee - Limited Access</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  {error && (
+                    <div className="text-sm text-red-600 bg-red-50 p-3 rounded-md">
+                      {error}
+                    </div>
+                  )}
+                </div>
+                <DialogFooter>
+                  <Button type="button" variant="outline" onClick={() => setIsDialogOpen(false)}>
+                    Cancel
+                  </Button>
+                  <Button type="submit" disabled={loading}>
+                    {loading ? "Creating..." : "Create User"}
+                  </Button>
+                </DialogFooter>
+              </form>
+            </DialogContent>
+          </Dialog>
+        </div>
+
+        {success && (
+          <div className="text-sm text-green-600 bg-green-50 p-3 rounded-md">
+            {success}
+          </div>
+        )}
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <UserCog className="h-5 w-5" />
+              System Users
+            </CardTitle>
+            <CardDescription>All users registered in the system</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Username</TableHead>
+                  <TableHead>Email</TableHead>
+                  <TableHead>Role</TableHead>
+                  <TableHead>Created At</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {users.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={4} className="text-center text-muted-foreground py-8">
+                      No users found
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  users.map((user) => (
+                    <TableRow key={user.id}>
+                      <TableCell className="font-medium">{user.username}</TableCell>
+                      <TableCell>{user.email}</TableCell>
+                      <TableCell>
+                        <Badge className={getRoleBadgeColor(user.role)}>
+                          {user.role}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>{new Date(user.createdAt).toLocaleDateString()}</TableCell>
+                    </TableRow>
+                  ))
+                )}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
+      </div>
+    </ProtectedRoute>
+  )
+}

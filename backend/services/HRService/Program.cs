@@ -1,4 +1,5 @@
 using HRService.Data;
+using HRService.Consumers;
 using Microsoft.EntityFrameworkCore;
 using Serilog;
 using Shared.Logging;
@@ -12,6 +13,8 @@ builder.Services.AddDbContext<HrDbContext>(options =>
     options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
 
 builder.Services.AddScoped<Shared.Messaging.IRabbitMQProducer, Shared.Messaging.RabbitMQProducer>();
+builder.Services.AddHostedService<UserCreatedConsumer>();
+
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();

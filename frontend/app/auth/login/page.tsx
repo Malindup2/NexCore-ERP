@@ -7,22 +7,46 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
+import { setAuthData } from "@/lib/auth"
+
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5166"
 
 export default function LoginPage() {
   const router = useRouter()
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [isLoading, setIsLoading] = useState(false)
+  const [error, setError] = useState("")
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
     setIsLoading(true)
+    setError("")
     
-    // TODO: Implement actual login logic with backend
-    setTimeout(() => {
-      setIsLoading(false)
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/auth/login`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password })
+      })
+
+      if (!response.ok) {
+        const errorText = await response.text()
+        throw new Error(errorText || "Login failed")
+      }
+
+      const data = await response.json()
+      
+      // Store token and user data
+      setAuthData(data.Token || data.token, data.User || data.user)
+      
+      // Redirect to dashboard
       router.push("/")
-    }, 1000)
+    } catch (err: any) {
+      setError(err.message || "Invalid email or password")
+    } finally {
+      setIsLoading(false)
+    }
   }
 
   return (
@@ -70,6 +94,11 @@ export default function LoginPage() {
                 required
               />
             </div>
+            {error && (
+              <div className="text-sm text-red-600 bg-red-50 p-3 rounded-md">
+                {error}
+              </div>
+            )}
           </CardContent>
           <CardFooter className="flex flex-col space-y-4">
             <Button type="submit" className="w-full" disabled={isLoading}>
@@ -81,6 +110,15 @@ export default function LoginPage() {
                 Sign up
               </Link>
             </p>
+            <div className="mt-4 p-4 bg-blue-50 rounded-md text-left">
+              <p className="text-xs font-semibold text-blue-900 mb-2">Demo Credentials:</p>
+              <p className="text-xs text-blue-700">
+                <strong>Admin:</strong> admin@nexcore.lk / Admin@123
+              </p>
+              <p className="text-xs text-blue-700 mt-1">
+                <strong>Or register</strong> as an employee to test the system
+              </p>
+            </div>
           </CardFooter>
         </form>
       </Card>
