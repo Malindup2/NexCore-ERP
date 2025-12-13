@@ -82,6 +82,9 @@ const data = {
       icon: Users,
       items: [
         { title: "Employees", url: "/hr/employees" },
+        { title: "Attendance", url: "/hr/attendance" },
+        { title: "Leave Management", url: "/hr/leave" },
+        { title: "Performance Reviews", url: "/hr/reviews" },
         { title: "Payroll", url: "/hr/payroll" },
       ],
     },
