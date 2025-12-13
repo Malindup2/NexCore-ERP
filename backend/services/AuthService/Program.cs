@@ -20,6 +20,8 @@ builder.Services.AddSwaggerGen();
 
 var app = builder.Build();
 
+// Use CORS
+app.UseCors("AllowAll");
 
 app.UseSwagger();
 app.UseSwaggerUI();

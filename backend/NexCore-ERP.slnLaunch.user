@@ -3,19 +3,15 @@
     "Name": "New Profile",
     "Projects": [
       {
-        "Path": "services\\SalesService\\SalesService.csproj",
+        "Path": "services\\AuthService\\AuthService.csproj",
         "Action": "Start"
       },
       {
-        "Path": "services\\AccountingService\\AccountingService.csproj",
+        "Path": "services\\HRService\\HRService.csproj",
         "Action": "Start"
       },
       {
-        "Path": "services\\InventoryService\\InventoryService.csproj",
-        "Action": "Start"
-      },
-      {
-        "Path": "services\\ProcurementService\\ProcurementService.csproj",
+        "Path": "gateway\\ApiGateway\\ApiGateway.csproj",
         "Action": "Start"
       }
     ]

@@ -22,11 +22,11 @@ interface Product {
 }
 
 const mockProducts: Product[] = [
-  { id: 1, name: "Laptop Pro 15", sku: "LAP-001", description: "High performance laptop", price: 1299.99, costPrice: 899.99, quantity: 45, reorderLevel: 10 },
-  { id: 2, name: "Wireless Mouse", sku: "MOU-002", description: "Ergonomic wireless mouse", price: 29.99, costPrice: 15.99, quantity: 8, reorderLevel: 20 },
-  { id: 3, name: "USB-C Cable", sku: "CAB-003", description: "Fast charging cable", price: 19.99, costPrice: 8.99, quantity: 150, reorderLevel: 50 },
-  { id: 4, name: "Mechanical Keyboard", sku: "KEY-004", description: "RGB mechanical keyboard", price: 89.99, costPrice: 45.99, quantity: 32, reorderLevel: 15 },
-  { id: 5, name: "Monitor 27\"", sku: "MON-005", description: "4K UHD monitor", price: 399.99, costPrice: 249.99, quantity: 5, reorderLevel: 10 },
+  { id: 1, name: "Laptop Pro 15", sku: "LAP-001", description: "High performance laptop", price: 428997, costPrice: 296997, quantity: 45, reorderLevel: 10 },
+  { id: 2, name: "Wireless Mouse", sku: "MOU-002", description: "Ergonomic wireless mouse", price: 9897, costPrice: 5277, quantity: 8, reorderLevel: 20 },
+  { id: 3, name: "USB-C Cable", sku: "CAB-003", description: "Fast charging cable", price: 6597, costPrice: 2967, quantity: 150, reorderLevel: 50 },
+  { id: 4, name: "Mechanical Keyboard", sku: "KEY-004", description: "RGB mechanical keyboard", price: 29697, costPrice: 15177, quantity: 32, reorderLevel: 15 },
+  { id: 5, name: "Monitor 27\"", sku: "MON-005", description: "4K UHD monitor", price: 131997, costPrice: 82497, quantity: 5, reorderLevel: 10 },
 ]
 
 export default function ProductsPage() {
@@ -132,7 +132,7 @@ export default function ProductsPage() {
             <TrendingDown className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">${totalValue.toLocaleString()}</div>
+            <div className="text-2xl font-bold">LKR {totalValue.toLocaleString()}</div>
             <p className="text-xs text-muted-foreground">Total stock value</p>
           </CardContent>
         </Card>
@@ -179,10 +179,10 @@ export default function ProductsPage() {
                     </div>
                   </TableCell>
                   <TableCell className="font-mono text-sm">{product.sku}</TableCell>
-                  <TableCell className="text-right">${product.price.toFixed(2)}</TableCell>
-                  <TableCell className="text-right">${product.costPrice.toFixed(2)}</TableCell>
+                  <TableCell className="text-right">LKR {product.price.toLocaleString()}</TableCell>
+                  <TableCell className="text-right">LKR {product.costPrice.toLocaleString()}</TableCell>
                   <TableCell className="text-right font-medium">{product.quantity}</TableCell>
-                  <TableCell className="text-right">${(product.price * product.quantity).toFixed(2)}</TableCell>
+                  <TableCell className="text-right">LKR {(product.price * product.quantity).toLocaleString()}</TableCell>
                   <TableCell>
                     <Badge 
                       variant={

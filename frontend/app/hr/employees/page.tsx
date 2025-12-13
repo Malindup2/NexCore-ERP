@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -10,6 +10,8 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Plus, Search, Mail, Phone, Filter } from "lucide-react"
+
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5166"
 
 interface Employee {
   id: number
@@ -23,18 +25,11 @@ interface Employee {
   isActive: boolean
 }
 
-const mockEmployees: Employee[] = [
-  { id: 1, firstName: "John", lastName: "Doe", email: "john.doe@nexcore.com", phone: "+1234567890", department: "Engineering", designation: "Senior Developer", joiningDate: "2023-01-15", isActive: true },
-  { id: 2, firstName: "Jane", lastName: "Smith", email: "jane.smith@nexcore.com", phone: "+1234567891", department: "Marketing", designation: "Marketing Manager", joiningDate: "2023-03-20", isActive: true },
-  { id: 3, firstName: "Mike", lastName: "Johnson", email: "mike.johnson@nexcore.com", phone: "+1234567892", department: "Sales", designation: "Sales Executive", joiningDate: "2023-05-10", isActive: true },
-  { id: 4, firstName: "Sarah", lastName: "Williams", email: "sarah.williams@nexcore.com", phone: "+1234567893", department: "HR", designation: "HR Manager", joiningDate: "2022-11-05", isActive: true },
-  { id: 5, firstName: "David", lastName: "Brown", email: "david.brown@nexcore.com", phone: "+1234567894", department: "Finance", designation: "Accountant", joiningDate: "2023-07-12", isActive: false },
-]
-
 export default function EmployeesPage() {
-  const [employees] = useState<Employee[]>(mockEmployees)
+  const [employees, setEmployees] = useState<Employee[]>([])
   const [searchQuery, setSearchQuery] = useState("")
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false)
+  const [loading, setLoading] = useState(false)
   const [newEmployee, setNewEmployee] = useState<Partial<Employee>>({
     firstName: "",
     lastName: "",
@@ -45,11 +40,71 @@ export default function EmployeesPage() {
     isActive: true
   })
 
+  useEffect(() => {
+    fetchEmployees()
+  }, [])
+
+  const fetchEmployees = async () => {
+    setLoading(true)
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/hr/employees`)
+      if (response.ok) {
+        const data = await response.json()
+        setEmployees(data)
+      }
+    } catch (error) {
+      console.error("Error fetching employees:", error)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleAddEmployee = async () => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/hr/employees`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(newEmployee)
+      })
+
+      if (response.ok) {
+        setIsAddDialogOpen(false)
+        setNewEmployee({
+          firstName: "",
+          lastName: "",
+          email: "",
+          phone: "",
+          department: "",
+          designation: "",
+          isActive: true
+        })
+        fetchEmployees()
+      } else {
+        const error = await response.json()
+        alert(error.message || "Failed to add employee")
+      }
+    } catch (error) {
+      console.error("Error adding employee:", error)
+      alert("Failed to add employee")
+    }
+  }
+
   const filteredEmployees = employees.filter(emp =>
     `${emp.firstName} ${emp.lastName}`.toLowerCase().includes(searchQuery.toLowerCase()) ||
     emp.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
     emp.department.toLowerCase().includes(searchQuery.toLowerCase())
   )
+
+  if (loading && employees.length === 0) {
+    return (
+      <div className="flex flex-1 items-center justify-center p-6">
+        <div className="text-center">
+          <div className="text-lg font-semibold">Loading employees...</div>
+          <p className="text-muted-foreground">Please wait</p>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="flex flex-1 flex-col gap-6 p-6">
@@ -134,7 +189,7 @@ export default function EmployeesPage() {
             </div>
             <DialogFooter>
               <Button variant="outline" onClick={() => setIsAddDialogOpen(false)}>Cancel</Button>
-              <Button onClick={() => setIsAddDialogOpen(false)}>Add Employee</Button>
+              <Button onClick={handleAddEmployee}>Add Employee</Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
@@ -177,7 +232,14 @@ export default function EmployeesPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filteredEmployees.map((employee) => (
+              {filteredEmployees.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={7} className="text-center text-muted-foreground py-8">
+                    {loading ? "Loading..." : "No employees found"}
+                  </TableCell>
+                </TableRow>
+              ) : (
+                filteredEmployees.map((employee) => (
                 <TableRow key={employee.id}>
                   <TableCell className="font-medium">
                     {employee.firstName} {employee.lastName}
@@ -203,7 +265,8 @@ export default function EmployeesPage() {
                     </Badge>
                   </TableCell>
                 </TableRow>
-              ))}
+              ))
+              )}
             </TableBody>
           </Table>
         </CardContent>

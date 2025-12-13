@@ -159,10 +159,8 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
     <Sidebar collapsible="icon" {...props}>
       <SidebarHeader>
         <div className="flex items-center gap-2 p-2">
-            <div className="flex h-6 w-6 items-center justify-center rounded-md bg-primary text-primary-foreground">
-                <Command className="size-4" />
-            </div>
-            <span className="font-semibold truncate">NexCore ERP</span>
+          <img src="/assets/logo.png" alt="NexCore ERP" className="h-10 w-10" />
+          <span className="font-semibold text-base truncate">NexCore ERP</span>
         </div>
       </SidebarHeader>
       
@@ -189,22 +187,22 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                                 <CollapsibleContent>
                                     <SidebarMenuSub className="overflow-hidden">
                                         <AnimatePresence>
-                                            {item.items.map((subItem, index) => (
-                                                <SidebarMenuSubItem key={subItem.title}>
-                                                    <motion.div
-                                                        initial={{ opacity: 0, x: -10 }}
-                                                        animate={{ opacity: 1, x: 0 }}
-                                                        exit={{ opacity: 0, x: -10 }}
-                                                        transition={{ delay: index * 0.05, duration: 0.2, ease: "easeOut" }}
-                                                    >
-                                                        <SidebarMenuSubButton asChild isActive={pathname === subItem.url} className="transition-all duration-200 hover:translate-x-1 hover:bg-sidebar-accent/50">
-                                                            <Link href={subItem.url}>
-                                                                <span>{subItem.title}</span>
-                                                            </Link>
-                                                        </SidebarMenuSubButton>
-                                                    </motion.div>
-                                                </SidebarMenuSubItem>
-                                            ))}
+                                          {item.items.map((subItem, index) => (
+                                            <SidebarMenuSubItem key={subItem.title}>
+                                              <motion.div
+                                                initial={{ opacity: 0, x: -10 }}
+                                                animate={{ opacity: 1, x: 0 }}
+                                                exit={{ opacity: 0, x: -10 }}
+                                                transition={{ delay: index * 0.05, duration: 0.2, ease: "easeOut" }}
+                                              >
+                                                <SidebarMenuSubButton asChild isActive={pathname === subItem.url} className="transition-all duration-200 hover:translate-x-1 hover:bg-sidebar-accent/50">
+                                                  <Link href={subItem.url}>
+                                                    <span>{subItem.title}</span>
+                                                  </Link>
+                                                </SidebarMenuSubButton>
+                                              </motion.div>
+                                            </SidebarMenuSubItem>
+                                          ))}
                                         </AnimatePresence>
                                     </SidebarMenuSub>
                                 </CollapsibleContent>

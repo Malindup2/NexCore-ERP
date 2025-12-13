@@ -5,12 +5,12 @@ import { Users, Package, ShoppingCart, DollarSign, TrendingUp, ArrowUpRight, Arr
 import { Bar, BarChart, ResponsiveContainer, XAxis, YAxis, Tooltip, Line, LineChart, Area, AreaChart } from "recharts";
 
 const revenueData = [
-  { month: "Jan", revenue: 4500 },
-  { month: "Feb", revenue: 3800 },
-  { month: "Mar", revenue: 5200 },
-  { month: "Apr", revenue: 4600 },
-  { month: "May", revenue: 5800 },
-  { month: "Jun", revenue: 6200 },
+  { month: "Jan", revenue: 1485 },
+  { month: "Feb", revenue: 1254 },
+  { month: "Mar", revenue: 1716 },
+  { month: "Apr", revenue: 1518 },
+  { month: "May", revenue: 1914 },
+  { month: "Jun", revenue: 2046 },
 ];
 
 const salesData = [
@@ -24,10 +24,10 @@ const salesData = [
 ];
 
 const recentOrders = [
-  { id: "ORD-001", customer: "Olivia Martin", amount: "$1,999.00", status: "Completed" },
-  { id: "ORD-002", customer: "Jackson Lee", amount: "$39.00", status: "Processing" },
-  { id: "ORD-003", customer: "Isabella Nguyen", amount: "$299.00", status: "Completed" },
-  { id: "ORD-004", customer: "William Kim", amount: "$99.00", status: "Pending" },
+  { id: "ORD-001", customer: "Nuwan Perera", amount: "LKR 659,670", status: "Completed" },
+  { id: "ORD-002", customer: "Chamari Silva", amount: "LKR 12,870", status: "Processing" },
+  { id: "ORD-003", customer: "Kasun Fernando", amount: "LKR 98,670", status: "Completed" },
+  { id: "ORD-004", customer: "Dilini Rajapakse", amount: "LKR 32,670", status: "Pending" },
 ];
 
 export default function Home() {
@@ -48,7 +48,7 @@ export default function Home() {
             <DollarSign className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">$45,231.89</div>
+            <div className="text-2xl font-bold">LKR 14,926,523</div>
             <p className="text-xs text-muted-foreground flex items-center gap-1 mt-1">
               <TrendingUp className="h-3 w-3 text-green-500" />
               <span className="text-green-500">+20.1%</span> from last month
@@ -115,7 +115,7 @@ export default function Home() {
           <CardContent>
             <div className="text-2xl font-bold">In 5 Days</div>
             <p className="text-xs text-muted-foreground flex items-center gap-1 mt-1">
-              <span className="text-muted-foreground">Est. $125k</span>
+              <span className="text-muted-foreground">Est. LKR 41.25M</span>
             </p>
           </CardContent>
         </Card>
@@ -138,7 +138,7 @@ export default function Home() {
                   </linearGradient>
                 </defs>
                 <XAxis dataKey="month" stroke="#888888" fontSize={12} tickLine={false} axisLine={false} />
-                <YAxis stroke="#888888" fontSize={12} tickLine={false} axisLine={false} tickFormatter={(value) => `$${value}`} />
+                <YAxis stroke="#888888" fontSize={12} tickLine={false} axisLine={false} tickFormatter={(value) => `${value}k`} />
                 <Tooltip
                   contentStyle={{
                     backgroundColor: 'hsl(var(--background))',
