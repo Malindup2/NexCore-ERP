@@ -18,10 +18,27 @@ import {
   Bell,
   DollarSign,
   ChevronRight,
-  Shield
+  Shield,
+  Calendar,
+  Clock,
+  FileText,
+  Award
 } from "lucide-react"
 import { motion, AnimatePresence } from "framer-motion"
-import { getUser, isAdmin } from "@/lib/auth"
+import { getUser, isAdmin, clearAuthData } from "@/lib/auth"
+import { useRouter } from "next/navigation"
+import { toast } from "sonner"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog"
 
 import {
   Sidebar,
@@ -126,21 +143,40 @@ const data = {
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const pathname = usePathname();
+  const router = useRouter();
   const [user, setUser] = React.useState<any>(null)
-  const [showAdmin, setShowAdmin] = React.useState(false)
+  const [showLogoutDialog, setShowLogoutDialog] = React.useState(false)
 
   React.useEffect(() => {
     const currentUser = getUser()
     setUser(currentUser)
-    setShowAdmin(isAdmin())
   }, [])
 
-  // Add admin menu item if user is admin
+  const handleLogout = () => {
+    clearAuthData()
+    toast.success("Logged out successfully")
+    router.push("/auth/login")
+  }
+
+  // Filter navigation items based on user role
   const navItems = React.useMemo(() => {
-    const items = [...data.navMain]
-    
-    if (showAdmin) {
-      items.unshift({
+    const currentUser = getUser()
+    if (!currentUser) return []
+
+    const role = currentUser.role
+    const items: any[] = []
+
+    // Dashboard for everyone
+    items.push({
+      title: "Dashboard",
+      url: "/",
+      icon: LayoutDashboard,
+      isActive: true,
+    })
+
+    // Admin sees everything including administration
+    if (role === "Admin") {
+      items.push({
         title: "Administration",
         url: "/admin",
         icon: Shield,
@@ -150,10 +186,132 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
           { title: "User Management", url: "/admin/users" },
         ],
       })
+      items.push({
+        title: "HR Module",
+        url: "/hr",
+        icon: Users,
+        items: [
+          { title: "Employees", url: "/hr/employees" },
+          { title: "Attendance", url: "/hr/attendance" },
+          { title: "Leave Management", url: "/hr/leave" },
+          { title: "Performance Reviews", url: "/hr/reviews" },
+          { title: "Payroll", url: "/hr/payroll" },
+        ],
+      })
+      items.push({
+        title: "Inventory",
+        url: "/inventory",
+        icon: Package,
+        items: [
+          { title: "Products", url: "/inventory/products" },
+        ],
+      })
+      items.push({
+        title: "Sales",
+        url: "/sales",
+        icon: DollarSign,
+        items: [
+          { title: "Customers", url: "/sales/customers" },
+          { title: "Sales Orders", url: "/sales/orders" },
+        ],
+      })
+      items.push({
+        title: "Procurement",
+        url: "/procurement",
+        icon: ShoppingCart,
+        items: [
+          { title: "Suppliers", url: "/procurement/suppliers" },
+          { title: "Purchase Orders", url: "/procurement/orders" },
+        ],
+      })
+      items.push({
+        title: "Accounting",
+        url: "/accounting",
+        icon: Receipt,
+      })
     }
-    
+    // HR Manager sees only HR module
+    else if (role === "HRManager") {
+      items.push({
+        title: "HR Module",
+        url: "/hr",
+        icon: Users,
+        items: [
+          { title: "Employees", url: "/hr/employees" },
+          { title: "Attendance", url: "/hr/attendance" },
+          { title: "Leave Management", url: "/hr/leave" },
+          { title: "Performance Reviews", url: "/hr/reviews" },
+          { title: "Payroll", url: "/hr/payroll" },
+        ],
+      })
+    }
+    // Accountant sees only Accounting module
+    else if (role === "Accountant") {
+      items.push({
+        title: "Accounting",
+        url: "/accounting",
+        icon: Receipt,
+      })
+    }
+    // Sales/Procurement sees Sales, Procurement, and Inventory
+    else if (role === "SalesProcurement") {
+      items.push({
+        title: "Inventory",
+        url: "/inventory",
+        icon: Package,
+        items: [
+          { title: "Products", url: "/inventory/products" },
+        ],
+      })
+      items.push({
+        title: "Sales",
+        url: "/sales",
+        icon: DollarSign,
+        items: [
+          { title: "Customers", url: "/sales/customers" },
+          { title: "Sales Orders", url: "/sales/orders" },
+        ],
+      })
+      items.push({
+        title: "Procurement",
+        url: "/procurement",
+        icon: ShoppingCart,
+        items: [
+          { title: "Suppliers", url: "/procurement/suppliers" },
+          { title: "Purchase Orders", url: "/procurement/orders" },
+        ],
+      })
+    }
+    // Employee sees only self-service features
+    else if (role === "Employee") {
+      items.push({
+        title: "My Attendance",
+        url: "/hr/attendance",
+        icon: Clock,
+        isActive: false,
+      })
+      items.push({
+        title: "My Leave",
+        url: "/hr/leave",
+        icon: Calendar,
+        isActive: false,
+      })
+      items.push({
+        title: "My Reviews",
+        url: "/hr/reviews",
+        icon: Award,
+        isActive: false,
+      })
+      items.push({
+        title: "My Payroll",
+        url: "/hr/payroll",
+        icon: FileText,
+        isActive: false,
+      })
+    }
+
     return items
-  }, [showAdmin])
+  }, [user])
 
   return (
     <Sidebar collapsible="icon" {...props}>
@@ -226,70 +384,93 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       <SidebarFooter>
         <SidebarMenu>
           <SidebarMenuItem>
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <SidebarMenuButton
-                  size="lg"
-                  className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
-                >
-                  <Avatar className="h-8 w-8 rounded-lg">
-                    <AvatarImage src={data.user.avatar} alt={data.user.name} />
-                    <AvatarFallback className="rounded-lg">CN</AvatarFallback>
-                  </Avatar>
-                  <div className="grid flex-1 text-left text-sm leading-tight">
-                    <span className="truncate font-semibold">{data.user.name}</span>
-                    <span className="truncate text-xs">{data.user.email}</span>
-                  </div>
-                  <ChevronsUpDown className="ml-auto size-4" />
-                </SidebarMenuButton>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent
-                className="w-[--radix-dropdown-menu-trigger-width] min-w-56 rounded-lg"
-                side="bottom"
-                align="end"
-                sideOffset={4}
-              >
-                <DropdownMenuLabel className="p-0 font-normal">
-                  <div className="flex items-center gap-2 px-1 py-1.5 text-left text-sm">
+            {user?.role === "Employee" ? (
+              // Simple logout button for employees with confirmation dialog
+              <AlertDialog open={showLogoutDialog} onOpenChange={setShowLogoutDialog}>
+                <AlertDialogTrigger asChild>
+                  <SidebarMenuButton
+                    size="lg"
+                    className="bg-red-500/10 hover:bg-red-500/20 text-red-600 dark:text-red-400 border border-red-200 dark:border-red-800 transition-colors"
+                  >
+                    <LogOut className="h-5 w-5" />
+                    <span className="font-semibold">Logout</span>
+                  </SidebarMenuButton>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Confirm Logout</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      Are you sure you want to logout? You will need to sign in again to access your account.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                    <AlertDialogAction onClick={handleLogout} className="bg-red-600 hover:bg-red-700">
+                      Logout
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            ) : (
+              // Dropdown menu for admin/managers
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <SidebarMenuButton
+                    size="lg"
+                    className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
+                  >
                     <Avatar className="h-8 w-8 rounded-lg">
-                      <AvatarImage src={data.user.avatar} alt={data.user.name} />
-                      <AvatarFallback className="rounded-lg">CN</AvatarFallback>
+                      <AvatarImage src={user?.avatar} alt={user?.username} />
+                      <AvatarFallback className="rounded-lg">
+                        {user?.username?.substring(0, 2).toUpperCase() || "AD"}
+                      </AvatarFallback>
                     </Avatar>
                     <div className="grid flex-1 text-left text-sm leading-tight">
-                      <span className="truncate font-semibold">{data.user.name}</span>
-                      <span className="truncate text-xs">{data.user.email}</span>
+                      <span className="truncate font-semibold">{user?.username || "Admin"}</span>
+                      <span className="truncate text-xs">{user?.email || "admin@nexcore.lk"}</span>
                     </div>
-                  </div>
-                </DropdownMenuLabel>
-                <DropdownMenuSeparator />
-                <DropdownMenuGroup>
-                  <DropdownMenuItem>
-                    <Sparkles className="mr-2 h-4 w-4" />
-                    Upgrade to Pro
+                    <ChevronsUpDown className="ml-auto size-4" />
+                  </SidebarMenuButton>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent
+                  className="w-[--radix-dropdown-menu-trigger-width] min-w-56 rounded-lg"
+                  side="bottom"
+                  align="end"
+                  sideOffset={4}
+                >
+                  <DropdownMenuLabel className="p-0 font-normal">
+                    <div className="flex items-center gap-2 px-1 py-1.5 text-left text-sm">
+                      <Avatar className="h-8 w-8 rounded-lg">
+                        <AvatarImage src={user?.avatar} alt={user?.username} />
+                        <AvatarFallback className="rounded-lg">
+                          {user?.username?.substring(0, 2).toUpperCase() || "AD"}
+                        </AvatarFallback>
+                      </Avatar>
+                      <div className="grid flex-1 text-left text-sm leading-tight">
+                        <span className="truncate font-semibold">{user?.username || "Admin"}</span>
+                        <span className="truncate text-xs">{user?.email || "admin@nexcore.lk"}</span>
+                      </div>
+                    </div>
+                  </DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuGroup>
+                    <DropdownMenuItem>
+                      <BadgeCheck className="mr-2 h-4 w-4" />
+                      Account
+                    </DropdownMenuItem>
+                    <DropdownMenuItem>
+                      <Bell className="mr-2 h-4 w-4" />
+                      Notifications
+                    </DropdownMenuItem>
+                  </DropdownMenuGroup>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={handleLogout} className="text-red-600 dark:text-red-400">
+                    <LogOut className="mr-2 h-4 w-4" />
+                    Log out
                   </DropdownMenuItem>
-                </DropdownMenuGroup>
-                <DropdownMenuSeparator />
-                <DropdownMenuGroup>
-                  <DropdownMenuItem>
-                    <BadgeCheck className="mr-2 h-4 w-4" />
-                    Account
-                  </DropdownMenuItem>
-                  <DropdownMenuItem>
-                    <CreditCard className="mr-2 h-4 w-4" />
-                    Billing
-                  </DropdownMenuItem>
-                  <DropdownMenuItem>
-                    <Bell className="mr-2 h-4 w-4" />
-                    Notifications
-                  </DropdownMenuItem>
-                </DropdownMenuGroup>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem>
-                  <LogOut className="mr-2 h-4 w-4" />
-                  Log out
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            )}
           </SidebarMenuItem>
         </SidebarMenu>
       </SidebarFooter>

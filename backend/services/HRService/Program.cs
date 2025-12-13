@@ -15,6 +15,8 @@ builder.Services.AddDbContext<HrDbContext>(options =>
 builder.Services.AddScoped<Shared.Messaging.IRabbitMQProducer, Shared.Messaging.RabbitMQProducer>();
 builder.Services.AddHostedService<UserCreatedConsumer>();
 
+builder.Services.AddHttpClient();
+
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();

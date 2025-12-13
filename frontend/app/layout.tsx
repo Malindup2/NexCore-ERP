@@ -47,12 +47,12 @@ export default function RootLayout({
       >
         <LoadingScreen />
         <Toaster position="top-right" richColors />
-        <ProtectedRoute>
-          {isAuthPage ? (
-            // Auth pages - no ERP UI
-            <>{children}</>
-          ) : (
-            // ERP Dashboard - full UI
+        {isAuthPage ? (
+          // Auth pages 
+          <>{children}</>
+        ) : (
+          // Protected ERP Dashboard
+          <ProtectedRoute>
             <SidebarProvider>
               <AppSidebar />
               <main className="w-full flex flex-col">
@@ -68,8 +68,8 @@ export default function RootLayout({
                 </div>
               </main>
             </SidebarProvider>
-          )}
-        </ProtectedRoute>
+          </ProtectedRoute>
+        )}
       </body>
     </html>
   );

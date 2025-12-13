@@ -1,57 +1,97 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Calendar, DollarSign, Download, FileText } from "lucide-react"
+import { getUser, UserRoles } from "@/lib/auth"
+import { ProtectedRoute } from "@/components/protected-route"
+
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5166"
 
 interface PayrollRecord {
   id: number
-  employeeName: string
-  month: string
+  month: number
+  year: number
+  monthYear: string
   baseSalary: number
+  allowances: number
+  overtime: number
+  bonus: number
   deductions: number
+  tax: number
   netSalary: number
   status: "Paid" | "Pending" | "Processing"
+  paidDate?: string
+  notes?: string
 }
 
-const mockPayroll: PayrollRecord[] = [
-  { id: 1, employeeName: "Nuwan Perera", month: "December 2025", baseSalary: 150000, deductions: 15000, netSalary: 135000, status: "Pending" },
-  { id: 2, employeeName: "Chamari Silva", month: "December 2025", baseSalary: 180000, deductions: 18000, netSalary: 162000, status: "Pending" },
-  { id: 3, employeeName: "Kasun Fernando", month: "December 2025", baseSalary: 120000, deductions: 12000, netSalary: 108000, status: "Pending" },
-  { id: 4, employeeName: "Nuwan Perera", month: "November 2025", baseSalary: 150000, deductions: 15000, netSalary: 135000, status: "Paid" },
-  { id: 5, employeeName: "Chamari Silva", month: "November 2025", baseSalary: 180000, deductions: 18000, netSalary: 162000, status: "Paid" },
-]
-
 export default function PayrollPage() {
-  const [payrollRecords] = useState<PayrollRecord[]>(mockPayroll)
+  const [payrollRecords, setPayrollRecords] = useState<PayrollRecord[]>([])
   const [selectedMonth, setSelectedMonth] = useState("all")
+  const [loading, setLoading] = useState(true)
+  const [user, setUser] = useState<any>(null)
+  const [summary, setSummary] = useState<any>(null)
+
+  useEffect(() => {
+    const currentUser = getUser()
+    setUser(currentUser)
+    
+    if (currentUser) {
+      fetchPayrollData(currentUser.id)
+    }
+  }, [])
+
+  const fetchPayrollData = async (userId: number) => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/EmployeeSelfService/payroll/${userId}`)
+      if (response.ok) {
+        const data = await response.json()
+        setPayrollRecords(data.records)
+        setSummary(data.summary)
+      }
+    } catch (error) {
+      console.error("Error fetching payroll:", error)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  if (loading) {
+    return (
+      <div className="flex flex-1 items-center justify-center p-6">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+          <p className="text-muted-foreground">Loading payroll data...</p>
+        </div>
+      </div>
+    )
+  }
 
   const filteredRecords = selectedMonth === "all" 
     ? payrollRecords 
-    : payrollRecords.filter(record => record.month === selectedMonth)
+    : payrollRecords.filter(record => record.monthYear === selectedMonth)
 
   const totalPayroll = filteredRecords.reduce((sum, record) => sum + record.netSalary, 0)
   const pendingPayments = filteredRecords.filter(r => r.status === "Pending").length
+
+  // Get unique month-year combinations for the filter
+  const uniqueMonths = Array.from(new Set(payrollRecords.map(r => r.monthYear)))
 
   return (
     <div className="flex flex-1 flex-col gap-6 p-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Payroll</h1>
-          <p className="text-muted-foreground">Manage employee salaries and payments</p>
+          <h1 className="text-3xl font-bold tracking-tight">My Payroll</h1>
+          <p className="text-muted-foreground">View your salary and payment history</p>
         </div>
         <div className="flex gap-2">
           <Button variant="outline">
             <Download className="mr-2 h-4 w-4" />
-            Export
-          </Button>
-          <Button>
-            <FileText className="mr-2 h-4 w-4" />
-            Generate Payslips
+            Download Payslip
           </Button>
         </div>
       </div>
@@ -59,32 +99,32 @@ export default function PayrollPage() {
       <div className="grid gap-4 md:grid-cols-3">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Payroll</CardTitle>
+            <CardTitle className="text-sm font-medium">Year to Date</CardTitle>
             <DollarSign className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">LKR {totalPayroll.toLocaleString()}</div>
-            <p className="text-xs text-muted-foreground">For selected period</p>
+            <div className="text-2xl font-bold">LKR {(summary?.yearToDateTotal || 0).toLocaleString()}</div>
+            <p className="text-xs text-muted-foreground">Total earnings {new Date().getFullYear()}</p>
           </CardContent>
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Pending Payments</CardTitle>
+            <CardTitle className="text-sm font-medium">Latest Payment</CardTitle>
             <Calendar className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{pendingPayments}</div>
-            <p className="text-xs text-muted-foreground">Awaiting processing</p>
+            <div className="text-2xl font-bold">LKR {(summary?.latestPayment?.netSalary || 0).toLocaleString()}</div>
+            <p className="text-xs text-muted-foreground">{summary?.latestPayment?.monthYear || "No payments yet"}</p>
           </CardContent>
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Processed</CardTitle>
+            <CardTitle className="text-sm font-medium">Total Records</CardTitle>
             <FileText className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{filteredRecords.filter(r => r.status === "Paid").length}</div>
-            <p className="text-xs text-muted-foreground">Successfully completed</p>
+            <div className="text-2xl font-bold">{summary?.totalRecords || 0}</div>
+            <p className="text-xs text-muted-foreground">Payroll history</p>
           </CardContent>
         </Card>
       </div>
@@ -93,8 +133,8 @@ export default function PayrollPage() {
         <CardHeader>
           <div className="flex items-center justify-between">
             <div>
-              <CardTitle>Payroll Records</CardTitle>
-              <CardDescription>View and manage employee payroll</CardDescription>
+              <CardTitle>Payment History</CardTitle>
+              <CardDescription>Your salary payments and payslips</CardDescription>
             </div>
             <Select value={selectedMonth} onValueChange={setSelectedMonth}>
               <SelectTrigger className="w-[200px]">
@@ -102,9 +142,9 @@ export default function PayrollPage() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Months</SelectItem>
-                <SelectItem value="December 2025">December 2025</SelectItem>
-                <SelectItem value="November 2025">November 2025</SelectItem>
-                <SelectItem value="October 2025">October 2025</SelectItem>
+                {uniqueMonths.map(month => (
+                  <SelectItem key={month} value={month}>{month}</SelectItem>
+                ))}
               </SelectContent>
             </Select>
           </div>
@@ -113,39 +153,35 @@ export default function PayrollPage() {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Employee</TableHead>
-                <TableHead>Period</TableHead>
-                <TableHead className="text-right">Base Salary</TableHead>
-                <TableHead className="text-right">Deductions</TableHead>
-                <TableHead className="text-right">Net Salary</TableHead>
+                <TableHead>Month/Year</TableHead>
+                <TableHead>Base Salary</TableHead>
+                <TableHead>Allowances</TableHead>
+                <TableHead>Overtime</TableHead>
+                <TableHead>Bonus</TableHead>
+                <TableHead>Deductions</TableHead>
+                <TableHead>Tax</TableHead>
+                <TableHead>Net Salary</TableHead>
                 <TableHead>Status</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
+                <TableHead>Paid Date</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {filteredRecords.map((record) => (
                 <TableRow key={record.id}>
-                  <TableCell className="font-medium">{record.employeeName}</TableCell>
-                  <TableCell>{record.month}</TableCell>
-                  <TableCell className="text-right">LKR {record.baseSalary.toLocaleString()}</TableCell>
-                  <TableCell className="text-right text-red-500">-LKR {record.deductions.toLocaleString()}</TableCell>
-                  <TableCell className="text-right font-semibold">LKR {record.netSalary.toLocaleString()}</TableCell>
+                  <TableCell className="font-medium">{record.monthYear}</TableCell>
+                  <TableCell>LKR {record.baseSalary.toLocaleString()}</TableCell>
+                  <TableCell>LKR {record.allowances.toLocaleString()}</TableCell>
+                  <TableCell>LKR {record.overtime.toLocaleString()}</TableCell>
+                  <TableCell>LKR {record.bonus.toLocaleString()}</TableCell>
+                  <TableCell>LKR {record.deductions.toLocaleString()}</TableCell>
+                  <TableCell>LKR {record.tax.toLocaleString()}</TableCell>
+                  <TableCell className="font-semibold">LKR {record.netSalary.toLocaleString()}</TableCell>
                   <TableCell>
-                    <Badge 
-                      variant={
-                        record.status === "Paid" ? "success" : 
-                        record.status === "Processing" ? "warning" : 
-                        "secondary"
-                      }
-                    >
+                    <Badge variant={record.status === "Paid" ? "default" : "secondary"}>
                       {record.status}
                     </Badge>
                   </TableCell>
-                  <TableCell className="text-right">
-                    <Button variant="ghost" size="sm">
-                      View Details
-                    </Button>
-                  </TableCell>
+                  <TableCell>{record.paidDate ? new Date(record.paidDate).toLocaleDateString() : "N/A"}</TableCell>
                 </TableRow>
               ))}
             </TableBody>

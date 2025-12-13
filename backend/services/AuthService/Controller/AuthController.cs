@@ -7,6 +7,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Shared.Messaging;
 using Shared.Events;
+using System.Security.Cryptography;
 using RegisterRequest = AuthService.DTOs.RegisterRequest;
 using LoginRequest = AuthService.DTOs.LoginRequest;
 using ForgotPasswordRequest = AuthService.DTOs.ForgotPasswordRequest;
@@ -21,12 +22,21 @@ namespace AuthService.Controllers
         private readonly AuthDbContext _context;
         private readonly JwtTokenGenerator _tokenGenerator;
         private readonly IRabbitMQProducer _messageProducer;
+        private readonly IEmailService _emailService;
+        private readonly ILogger<AuthController> _logger;
 
-        public AuthController(AuthDbContext context, JwtTokenGenerator tokenGenerator, IRabbitMQProducer messageProducer)
+        public AuthController(
+            AuthDbContext context, 
+            JwtTokenGenerator tokenGenerator, 
+            IRabbitMQProducer messageProducer,
+            IEmailService emailService,
+            ILogger<AuthController> logger)
         {
             _context = context;
             _tokenGenerator = tokenGenerator;
             _messageProducer = messageProducer;
+            _emailService = emailService;
+            _logger = logger;
         }
 
         [HttpPost("register")]
