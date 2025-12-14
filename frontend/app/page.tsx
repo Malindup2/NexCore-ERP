@@ -39,6 +39,7 @@ const recentOrders = [
 export default function Home() {
   const [user, setUser] = useState<any>(null)
   const [dashboardData, setDashboardData] = useState<any>(null)
+  const [adminMetrics, setAdminMetrics] = useState<any>(null)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
@@ -49,7 +50,8 @@ export default function Home() {
     if (currentUser?.role === UserRoles.Employee) {
       fetchEmployeeDashboard(currentUser.id)
     } else {
-      setLoading(false)
+      // Fetch admin/manager metrics
+      fetchAdminMetrics()
     }
   }, [])
 
@@ -62,6 +64,47 @@ export default function Home() {
       }
     } catch (error) {
       console.error("Error fetching dashboard:", error)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const fetchAdminMetrics = async () => {
+    try {
+      const [salesRes, inventoryRes, employeesRes, procurementRes, payrollRes] = await Promise.all([
+        fetch(`${API_BASE_URL}/api/sales/orders`),
+        fetch(`${API_BASE_URL}/api/inventory/products`),
+        fetch(`${API_BASE_URL}/api/hr/employees`),
+        fetch(`${API_BASE_URL}/api/procurement/orders`),
+        fetch(`${API_BASE_URL}/api/payroll/summary`)
+      ])
+
+      const sales = salesRes.ok ? await salesRes.json() : []
+      const inventory = inventoryRes.ok ? await inventoryRes.json() : []
+      const employees = employeesRes.ok ? await employeesRes.json() : []
+      const procurement = procurementRes.ok ? await procurementRes.json() : []
+      const payroll = payrollRes.ok ? await payrollRes.json() : null
+
+      // Calculate metrics
+      const totalRevenue = sales.reduce((sum: number, order: any) => sum + order.totalAmount, 0)
+      const pendingPOs = procurement.filter((po: any) => po.status === "Draft" || po.status === "Submitted").length
+      
+      setAdminMetrics({
+        totalRevenue,
+        salesCount: sales.length,
+        inventoryCount: inventory.length,
+        employeeCount: employees.length,
+        pendingPOs,
+        payrollSummary: payroll,
+        recentOrders: sales.slice(0, 4).map((order: any) => ({
+          id: `ORD-${order.id}`,
+          customerId: order.customerId,
+          amount: `LKR ${order.totalAmount.toLocaleString()}`,
+          status: order.status
+        }))
+      })
+    } catch (error) {
+      console.error("Error fetching admin metrics:", error)
     } finally {
       setLoading(false)
     }
@@ -229,6 +272,17 @@ export default function Home() {
   }
 
   // Admin/Manager Dashboard - Full business metrics
+  if (loading) {
+    return (
+      <div className="flex flex-1 items-center justify-center p-6">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+          <p className="text-muted-foreground">Loading dashboard...</p>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="flex flex-1 flex-col gap-6 p-6">
       <div className="flex items-center justify-between">
@@ -246,23 +300,23 @@ export default function Home() {
             <DollarSign className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">LKR 14,926,523</div>
-            <p className="text-xs text-muted-foreground flex items-center gap-1 mt-1">
-              <TrendingUp className="h-3 w-3 text-green-500" />
-              <span className="text-green-500">+20.1%</span> from last month
+            <div className="text-2xl font-bold">
+              LKR {adminMetrics?.totalRevenue?.toLocaleString() || "0"}
+            </div>
+            <p className="text-xs text-muted-foreground mt-1">
+              From {adminMetrics?.salesCount || 0} sales orders
             </p>
           </CardContent>
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Sales</CardTitle>
+            <CardTitle className="text-sm font-medium">Sales Orders</CardTitle>
             <ShoppingCart className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">+2,350</div>
-            <p className="text-xs text-muted-foreground flex items-center gap-1 mt-1">
-              <TrendingUp className="h-3 w-3 text-green-500" />
-              <span className="text-green-500">+180.1%</span> from last month
+            <div className="text-2xl font-bold">{adminMetrics?.salesCount || 0}</div>
+            <p className="text-xs text-muted-foreground mt-1">
+              Total orders placed
             </p>
           </CardContent>
         </Card>
@@ -272,10 +326,9 @@ export default function Home() {
             <Package className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">1,234</div>
-            <p className="text-xs text-muted-foreground flex items-center gap-1 mt-1">
-              <TrendingUp className="h-3 w-3 text-green-500" />
-              <span className="text-green-500">+5%</span> from last month
+            <div className="text-2xl font-bold">{adminMetrics?.inventoryCount || 0}</div>
+            <p className="text-xs text-muted-foreground mt-1">
+              Products in stock
             </p>
           </CardContent>
         </Card>
@@ -285,35 +338,37 @@ export default function Home() {
             <Users className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">245</div>
-            <p className="text-xs text-muted-foreground flex items-center gap-1 mt-1">
-              <TrendingUp className="h-3 w-3 text-green-500" />
-              <span className="text-green-500">+12</span> from last month
+            <div className="text-2xl font-bold">{adminMetrics?.employeeCount || 0}</div>
+            <p className="text-xs text-muted-foreground mt-1">
+              Total employees
             </p>
           </CardContent>
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Pending POs</CardTitle>
-            <ShoppingCart className="h-4 w-4 text-muted-foreground" />
+            <ShoppingCart className="h-4 w-4 text-orange-500" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">12</div>
-            <p className="text-xs text-muted-foreground flex items-center gap-1 mt-1">
-              <ArrowUpRight className="h-3 w-3 text-red-500" />
-              <span className="text-red-500">+2</span> urgent
+            <div className="text-2xl font-bold text-orange-500">
+              {adminMetrics?.pendingPOs || 0}
+            </div>
+            <p className="text-xs text-muted-foreground mt-1">
+              Awaiting action
             </p>
           </CardContent>
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Next Payroll</CardTitle>
-            <DollarSign className="h-4 w-4 text-muted-foreground" />
+            <CardTitle className="text-sm font-medium">Monthly Payroll</CardTitle>
+            <DollarSign className="h-4 w-4 text-green-500" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">In 5 Days</div>
-            <p className="text-xs text-muted-foreground flex items-center gap-1 mt-1">
-              <span className="text-muted-foreground">Est. LKR 41.25M</span>
+            <div className="text-2xl font-bold text-green-500">
+              LKR {adminMetrics?.payrollSummary?.totalNetSalary?.toLocaleString() || "0"}
+            </div>
+            <p className="text-xs text-muted-foreground mt-1">
+              {adminMetrics?.payrollSummary?.totalEmployees || 0} employees
             </p>
           </CardContent>
         </Card>
@@ -360,24 +415,28 @@ export default function Home() {
         <Card className="col-span-3">
           <CardHeader>
             <CardTitle>Recent Sales</CardTitle>
-            <CardDescription>You made 265 sales this month</CardDescription>
+            <CardDescription>Latest {adminMetrics?.recentOrders?.length || 0} sales orders</CardDescription>
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              {recentOrders.map((order) => (
-                <div key={order.id} className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className="h-9 w-9 rounded-full bg-muted flex items-center justify-center text-sm font-medium">
-                      {order.customer.split(" ").map(n => n[0]).join("")}
+              {adminMetrics?.recentOrders && adminMetrics.recentOrders.length > 0 ? (
+                adminMetrics.recentOrders.map((order: any) => (
+                  <div key={order.id} className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="h-9 w-9 rounded-full bg-muted flex items-center justify-center text-sm font-medium">
+                        {order.id.slice(0, 2)}
+                      </div>
+                      <div>
+                        <p className="text-sm font-medium">{order.id}</p>
+                        <p className="text-xs text-muted-foreground">Customer #{order.customerId}</p>
+                      </div>
                     </div>
-                    <div>
-                      <p className="text-sm font-medium">{order.customer}</p>
-                      <p className="text-xs text-muted-foreground">{order.id}</p>
-                    </div>
+                    <div className="text-sm font-medium">{order.amount}</div>
                   </div>
-                  <div className="text-sm font-medium">{order.amount}</div>
-                </div>
-              ))}
+                ))
+              ) : (
+                <p className="text-sm text-muted-foreground">No recent orders</p>
+              )}
             </div>
           </CardContent>
         </Card>

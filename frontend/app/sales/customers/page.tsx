@@ -1,14 +1,16 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { Badge } from "@/components/ui/badge"
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Label } from "@/components/ui/label"
-import { Plus, Search, Users, Mail, Phone } from "lucide-react"
+import { Plus, Search, Users, Mail, Phone, Edit, Trash2 } from "lucide-react"
+import { useRouter } from "next/navigation"
+
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5166"
 
 interface Customer {
   id: number
@@ -16,21 +18,111 @@ interface Customer {
   email: string
   phone: string
   address: string
-  totalOrders: number
-  totalSpent: number
 }
 
-const mockCustomers: Customer[] = [
-  { id: 1, name: "Nuwan Perera", email: "nuwan.perera@email.lk", phone: "+94771234567", address: "123 Galle Road, Colombo 03", totalOrders: 12, totalSpent: 5088600 },
-  { id: 2, name: "Chamari Silva", email: "chamari.silva@email.lk", phone: "+94712345678", address: "456 Kandy Road, Kandy", totalOrders: 8, totalSpent: 3082200 },
-  { id: 3, name: "Kasun Fernando", email: "kasun.fernando@email.lk", phone: "+94767891234", address: "789 Station Road, Negombo", totalOrders: 15, totalSpent: 7623000 },
-  { id: 4, name: "Dilini Rajapakse", email: "dilini.r@email.lk", phone: "+94723456789", address: "321 Beach Road, Galle", totalOrders: 5, totalSpent: 2237400 },
-]
-
 export default function CustomersPage() {
-  const [customers] = useState<Customer[]>(mockCustomers)
+  const router = useRouter()
+  const [customers, setCustomers] = useState<Customer[]>([])
   const [searchQuery, setSearchQuery] = useState("")
-  const [isAddDialogOpen, setIsAddDialogOpen] = useState(false)
+  const [isDialogOpen, setIsDialogOpen] = useState(false)
+  const [editingCustomer, setEditingCustomer] = useState<Customer | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [formData, setFormData] = useState({
+    name: "",
+    email: "",
+    phone: "",
+    address: ""
+  })
+
+  useEffect(() => {
+    const userRole = localStorage.getItem("userRole")
+    if (userRole !== "Admin" && userRole !== "SalesProcurement") {
+      router.push("/")
+      return
+    }
+    fetchCustomers()
+  }, [router])
+
+  const fetchCustomers = async () => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/sales/customers`)
+      const data = await response.json()
+      setCustomers(data)
+      setLoading(false)
+    } catch (error) {
+      console.error("Error fetching customers:", error)
+      setLoading(false)
+    }
+  }
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    try {
+      const url = editingCustomer 
+        ? `${API_BASE_URL}/api/sales/customers/${editingCustomer.id}`
+        : `${API_BASE_URL}/api/sales/customers`
+      
+      const response = await fetch(url, {
+        method: editingCustomer ? "PUT" : "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(formData)
+      })
+
+      if (response.ok) {
+        setIsDialogOpen(false)
+        resetForm()
+        fetchCustomers()
+      }
+    } catch (error) {
+      console.error("Error saving customer:", error)
+    }
+  }
+
+  const handleEdit = (customer: Customer) => {
+    setEditingCustomer(customer)
+    setFormData({
+      name: customer.name,
+      email: customer.email,
+      phone: customer.phone,
+      address: customer.address
+    })
+    setIsDialogOpen(true)
+  }
+
+  const handleDelete = async (id: number) => {
+    if (!confirm("Are you sure you want to delete this customer? This will fail if they have existing orders.")) return
+    
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/sales/customers/${id}`, {
+        method: "DELETE"
+      })
+      if (response.ok) {
+        fetchCustomers()
+      } else {
+        alert("Cannot delete customer with existing orders")
+      }
+    } catch (error) {
+      console.error("Error deleting customer:", error)
+    }
+  }
+
+  const resetForm = () => {
+    setFormData({
+      name: "",
+      email: "",
+      phone: "",
+      address: ""
+    })
+    setEditingCustomer(null)
+  }
+
+  if (loading) {
+    return (
+      <div className="flex justify-center items-center h-screen">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+      </div>
+    )
+  }
 
   const filteredCustomers = customers.filter(customer =>
     customer.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -44,42 +136,10 @@ export default function CustomersPage() {
           <h1 className="text-3xl font-bold tracking-tight">Customers</h1>
           <p className="text-muted-foreground">Manage your customer relationships</p>
         </div>
-        <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
-          <DialogTrigger asChild>
-            <Button>
-              <Plus className="mr-2 h-4 w-4" />
-              Add Customer
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="max-w-2xl">
-            <DialogHeader>
-              <DialogTitle>Add New Customer</DialogTitle>
-              <DialogDescription>Enter customer details</DialogDescription>
-            </DialogHeader>
-            <div className="grid gap-4 py-4">
-              <div className="space-y-2">
-                <Label htmlFor="customerName">Customer Name</Label>
-                <Input id="customerName" placeholder="Enter name" />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="customerEmail">Email</Label>
-                <Input id="customerEmail" type="email" placeholder="customer@email.com" />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="customerPhone">Phone</Label>
-                <Input id="customerPhone" placeholder="+1234567890" />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="customerAddress">Address</Label>
-                <Input id="customerAddress" placeholder="Street address" />
-              </div>
-            </div>
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setIsAddDialogOpen(false)}>Cancel</Button>
-              <Button onClick={() => setIsAddDialogOpen(false)}>Add Customer</Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
+        <Button onClick={() => { resetForm(); setIsDialogOpen(true) }}>
+          <Plus className="mr-2 h-4 w-4" />
+          Add Customer
+        </Button>
       </div>
 
       <div className="grid gap-4 md:grid-cols-3">
@@ -90,27 +150,6 @@ export default function CustomersPage() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{customers.length}</div>
-            <p className="text-xs text-muted-foreground">Active customers</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Orders</CardTitle>
-            <Mail className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{customers.reduce((sum, c) => sum + c.totalOrders, 0)}</div>
-            <p className="text-xs text-muted-foreground">Across all customers</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Revenue</CardTitle>
-            <Phone className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">LKR {customers.reduce((sum, c) => sum + c.totalSpent, 0).toLocaleString()}</div>
-            <p className="text-xs text-muted-foreground">From all customers</p>
           </CardContent>
         </Card>
       </div>
@@ -119,17 +158,19 @@ export default function CustomersPage() {
         <CardHeader>
           <div className="flex items-center justify-between">
             <div>
-              <CardTitle>Customer List</CardTitle>
-              <CardDescription>View and manage customers</CardDescription>
+              <CardTitle>Customer Directory</CardTitle>
+              <CardDescription>View and manage all customers</CardDescription>
             </div>
-            <div className="relative">
-              <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder="Search customers..."
-                className="pl-8 w-[300px]"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-              />
+            <div className="flex items-center gap-2">
+              <div className="relative">
+                <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Search customers..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="pl-8 w-[300px]"
+                />
+              </div>
             </div>
           </div>
         </CardHeader>
@@ -138,10 +179,9 @@ export default function CustomersPage() {
             <TableHeader>
               <TableRow>
                 <TableHead>Name</TableHead>
-                <TableHead>Contact</TableHead>
+                <TableHead>Email</TableHead>
+                <TableHead>Phone</TableHead>
                 <TableHead>Address</TableHead>
-                <TableHead className="text-right">Total Orders</TableHead>
-                <TableHead className="text-right">Total Spent</TableHead>
                 <TableHead className="text-right">Actions</TableHead>
               </TableRow>
             </TableHeader>
@@ -150,22 +190,27 @@ export default function CustomersPage() {
                 <TableRow key={customer.id}>
                   <TableCell className="font-medium">{customer.name}</TableCell>
                   <TableCell>
-                    <div className="flex flex-col gap-1">
-                      <div className="flex items-center gap-2 text-sm">
-                        <Mail className="h-3 w-3 text-muted-foreground" />
-                        {customer.email}
-                      </div>
-                      <div className="flex items-center gap-2 text-sm">
-                        <Phone className="h-3 w-3 text-muted-foreground" />
-                        {customer.phone}
-                      </div>
+                    <div className="flex items-center gap-2">
+                      <Mail className="h-4 w-4 text-muted-foreground" />
+                      {customer.email}
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex items-center gap-2">
+                      <Phone className="h-4 w-4 text-muted-foreground" />
+                      {customer.phone}
                     </div>
                   </TableCell>
                   <TableCell>{customer.address}</TableCell>
-                  <TableCell className="text-right">{customer.totalOrders}</TableCell>
-                  <TableCell className="text-right font-semibold">LKR {customer.totalSpent.toLocaleString()}</TableCell>
                   <TableCell className="text-right">
-                    <Button variant="ghost" size="sm">View Details</Button>
+                    <div className="flex justify-end gap-2">
+                      <Button variant="outline" size="sm" onClick={() => handleEdit(customer)}>
+                        <Edit className="h-4 w-4" />
+                      </Button>
+                      <Button variant="destructive" size="sm" onClick={() => handleDelete(customer.id)}>
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
                   </TableCell>
                 </TableRow>
               ))}
@@ -173,6 +218,66 @@ export default function CustomersPage() {
           </Table>
         </CardContent>
       </Card>
+
+      <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>{editingCustomer ? "Edit Customer" : "Add New Customer"}</DialogTitle>
+            <DialogDescription>
+              {editingCustomer ? "Update customer details" : "Enter customer details"}
+            </DialogDescription>
+          </DialogHeader>
+          <form onSubmit={handleSubmit}>
+            <div className="grid gap-4 py-4">
+              <div className="space-y-2">
+                <Label htmlFor="name">Customer Name</Label>
+                <Input
+                  id="name"
+                  value={formData.name}
+                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                  required
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="email">Email</Label>
+                <Input
+                  id="email"
+                  type="email"
+                  value={formData.email}
+                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                  required
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="phone">Phone</Label>
+                <Input
+                  id="phone"
+                  value={formData.phone}
+                  onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                  required
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="address">Address</Label>
+                <Input
+                  id="address"
+                  value={formData.address}
+                  onChange={(e) => setFormData({ ...formData, address: e.target.value })}
+                  required
+                />
+              </div>
+            </div>
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={() => setIsDialogOpen(false)}>
+                Cancel
+              </Button>
+              <Button type="submit">
+                {editingCustomer ? "Update" : "Add"} Customer
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

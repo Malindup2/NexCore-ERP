@@ -138,6 +138,16 @@ const data = {
       url: "/accounting",
       icon: Receipt,
     },
+    {
+      title: "Payroll",
+      url: "/payroll",
+      icon: DollarSign,
+      items: [
+        { title: "Salary Records", url: "/payroll/salary-records" },
+        { title: "Payroll Runs", url: "/payroll/runs" },
+        { title: "Reports", url: "/payroll/reports" },
+      ],
+    },
   ],
 }
 
@@ -230,6 +240,16 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         url: "/accounting",
         icon: Receipt,
       })
+      items.push({
+        title: "Payroll",
+        url: "/payroll",
+        icon: DollarSign,
+        items: [
+          { title: "Salary Records", url: "/payroll/salary-records" },
+          { title: "Payroll Runs", url: "/payroll/runs" },
+          { title: "Reports", url: "/payroll/reports" },
+        ],
+      })
     }
     // HR Manager sees only HR module
     else if (role === "HRManager") {
@@ -244,6 +264,16 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
           { title: "Leave Approvals", url: "/hr/leave-approvals" },
           { title: "Performance Reviews", url: "/hr/reviews" },
           { title: "Payroll", url: "/hr/payroll" },
+        ],
+      })
+      items.push({
+        title: "Payroll",
+        url: "/payroll",
+        icon: DollarSign,
+        items: [
+          { title: "Salary Records", url: "/payroll/salary-records" },
+          { title: "Payroll Runs", url: "/payroll/runs" },
+          { title: "Reports", url: "/payroll/reports" },
         ],
       })
     }

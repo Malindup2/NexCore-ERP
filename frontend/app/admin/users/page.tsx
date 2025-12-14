@@ -11,7 +11,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge"
 import { ProtectedRoute } from "@/components/protected-route"
 import { UserRoles } from "@/lib/auth"
-import { Plus, UserCog } from "lucide-react"
+import { Plus, UserCog, Edit, Trash2 } from "lucide-react"
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog"
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5166"
 
@@ -26,14 +27,23 @@ interface User {
 export default function AdminUsersPage() {
   const [users, setUsers] = useState<User[]>([])
   const [isDialogOpen, setIsDialogOpen] = useState(false)
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState("")
   const [success, setSuccess] = useState("")
+  const [selectedUser, setSelectedUser] = useState<User | null>(null)
   
   const [newUser, setNewUser] = useState({
     username: "",
     email: "",
     password: "",
+    role: ""
+  })
+
+  const [editUser, setEditUser] = useState({
+    username: "",
+    email: "",
     role: ""
   })
 
@@ -91,6 +101,89 @@ export default function AdminUsersPage() {
     } finally {
       setLoading(false)
     }
+  }
+
+  const handleEditUser = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!selectedUser) return
+
+    setLoading(true)
+    setError("")
+    setSuccess("")
+
+    try {
+      const token = localStorage.getItem("token")
+      const response = await fetch(`${API_BASE_URL}/api/auth/users/${selectedUser.id}`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`
+        },
+        body: JSON.stringify(editUser)
+      })
+
+      if (!response.ok) {
+        const result = await response.json()
+        throw new Error(result.message || "Failed to update user")
+      }
+
+      const data = await response.json()
+      setSuccess(`User ${data.user.username} updated successfully!`)
+      setIsEditDialogOpen(false)
+      setSelectedUser(null)
+      fetchUsers()
+    } catch (err: any) {
+      setError(err.message || "Failed to update user")
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleDeleteUser = async () => {
+    if (!selectedUser) return
+
+    setLoading(true)
+    setError("")
+    setSuccess("")
+
+    try {
+      const token = localStorage.getItem("token")
+      const response = await fetch(`${API_BASE_URL}/api/auth/users/${selectedUser.id}`, {
+        method: "DELETE",
+        headers: {
+          "Authorization": `Bearer ${token}`
+        }
+      })
+
+      if (!response.ok) {
+        const result = await response.json()
+        throw new Error(result.message || "Failed to delete user")
+      }
+
+      setSuccess(`User ${selectedUser.username} deleted successfully!`)
+      setIsDeleteDialogOpen(false)
+      setSelectedUser(null)
+      fetchUsers()
+    } catch (err: any) {
+      setError(err.message || "Failed to delete user")
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const openEditDialog = (user: User) => {
+    setSelectedUser(user)
+    setEditUser({
+      username: user.username,
+      email: user.email,
+      role: user.role
+    })
+    setIsEditDialogOpen(true)
+  }
+
+  const openDeleteDialog = (user: User) => {
+    setSelectedUser(user)
+    setIsDeleteDialogOpen(true)
   }
 
   const getRoleBadgeColor = (role: string) => {
@@ -218,12 +311,13 @@ export default function AdminUsersPage() {
                   <TableHead>Email</TableHead>
                   <TableHead>Role</TableHead>
                   <TableHead>Created At</TableHead>
+                  <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {users.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={4} className="text-center text-muted-foreground py-8">
+                    <TableCell colSpan={5} className="text-center text-muted-foreground py-8">
                       No users found
                     </TableCell>
                   </TableRow>
@@ -238,6 +332,24 @@ export default function AdminUsersPage() {
                         </Badge>
                       </TableCell>
                       <TableCell>{new Date(user.createdAt).toLocaleDateString()}</TableCell>
+                      <TableCell className="text-right">
+                        <div className="flex justify-end gap-2">
+                          <Button 
+                            variant="ghost" 
+                            size="sm"
+                            onClick={() => openEditDialog(user)}
+                          >
+                            <Edit className="h-4 w-4" />
+                          </Button>
+                          <Button 
+                            variant="ghost" 
+                            size="sm"
+                            onClick={() => openDeleteDialog(user)}
+                          >
+                            <Trash2 className="h-4 w-4 text-red-500" />
+                          </Button>
+                        </div>
+                      </TableCell>
                     </TableRow>
                   ))
                 )}
@@ -245,6 +357,92 @@ export default function AdminUsersPage() {
             </Table>
           </CardContent>
         </Card>
+
+        {/* Edit User Dialog */}
+        <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+          <DialogContent>
+            <form onSubmit={handleEditUser}>
+              <DialogHeader>
+                <DialogTitle>Edit User</DialogTitle>
+                <DialogDescription>
+                  Update user information
+                </DialogDescription>
+              </DialogHeader>
+              <div className="grid gap-4 py-4">
+                <div className="space-y-2">
+                  <Label htmlFor="edit-username">Username</Label>
+                  <Input
+                    id="edit-username"
+                    value={editUser.username}
+                    onChange={(e) => setEditUser({ ...editUser, username: e.target.value })}
+                    required
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="edit-email">Email</Label>
+                  <Input
+                    id="edit-email"
+                    type="email"
+                    value={editUser.email}
+                    onChange={(e) => setEditUser({ ...editUser, email: e.target.value })}
+                    required
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="edit-role">Role</Label>
+                  <Select value={editUser.role} onValueChange={(value) => setEditUser({ ...editUser, role: value })}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select role" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Admin">Admin - Full System Access</SelectItem>
+                      <SelectItem value="HRManager">HR Manager - HR Module</SelectItem>
+                      <SelectItem value="Accountant">Accountant - Accounting Module</SelectItem>
+                      <SelectItem value="SalesProcurement">Sales & Procurement Manager</SelectItem>
+                      <SelectItem value="Employee">Employee - Limited Access</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                {error && (
+                  <div className="text-sm text-red-600 bg-red-50 p-3 rounded-md">
+                    {error}
+                  </div>
+                )}
+              </div>
+              <DialogFooter>
+                <Button type="button" variant="outline" onClick={() => setIsEditDialogOpen(false)}>
+                  Cancel
+                </Button>
+                <Button type="submit" disabled={loading}>
+                  {loading ? "Updating..." : "Update User"}
+                </Button>
+              </DialogFooter>
+            </form>
+          </DialogContent>
+        </Dialog>
+
+        {/* Delete User Dialog */}
+        <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+              <AlertDialogDescription>
+                This action cannot be undone. This will permanently delete the user account for{" "}
+                <span className="font-semibold">{selectedUser?.username}</span>.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel onClick={() => setSelectedUser(null)}>Cancel</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={handleDeleteUser}
+                className="bg-red-500 hover:bg-red-600"
+                disabled={loading}
+              >
+                {loading ? "Deleting..." : "Delete User"}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </div>
     </ProtectedRoute>
   )

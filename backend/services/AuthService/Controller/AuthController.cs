@@ -188,6 +188,107 @@ namespace AuthService.Controllers
             return Ok(users);
         }
 
+        // Update user (Admin only)
+        [HttpPut("users/{id}")]
+        public async Task<IActionResult> UpdateUser(int id, [FromBody] UpdateUserRequest request)
+        {
+            // TODO: Add [Authorize(Roles = "Admin")] attribute once JWT authentication is configured
+
+            var user = await _context.Users.FindAsync(id);
+            if (user == null)
+            {
+                return NotFound(new { Message = "User not found." });
+            }
+
+            // Validate role if provided
+            if (!string.IsNullOrEmpty(request.Role))
+            {
+                var validRoles = new[] { UserRoles.Admin, UserRoles.HRManager, UserRoles.Accountant, UserRoles.SalesProcurement, UserRoles.Employee };
+                if (!validRoles.Contains(request.Role))
+                {
+                    return BadRequest("Invalid role specified.");
+                }
+            }
+
+            // Check if email is being changed and if it's already taken
+            if (!string.IsNullOrEmpty(request.Email) && request.Email != user.Email)
+            {
+                if (await _context.Users.AnyAsync(u => u.Email == request.Email && u.Id != id))
+                {
+                    return BadRequest(new { Message = "Email is already in use by another user." });
+                }
+                user.Email = request.Email;
+            }
+
+            // Update fields
+            if (!string.IsNullOrEmpty(request.Username))
+            {
+                user.Username = request.Username;
+            }
+
+            // Handle role change
+            string oldRole = user.Role;
+            if (!string.IsNullOrEmpty(request.Role) && request.Role != user.Role)
+            {
+                user.Role = request.Role;
+
+                // If changing to Employee role, publish event for HRService
+                if (request.Role == UserRoles.Employee)
+                {
+                    var userCreatedEvent = new UserCreatedEvent
+                    {
+                        UserId = user.Id,
+                        Username = user.Username,
+                        Email = user.Email,
+                        Role = user.Role
+                    };
+                    _messageProducer.PublishEvent(userCreatedEvent, "user_events");
+                }
+            }
+
+            await _context.SaveChangesAsync();
+
+            return Ok(new 
+            { 
+                Message = "User updated successfully",
+                User = new
+                {
+                    user.Id,
+                    user.Username,
+                    user.Email,
+                    user.Role
+                }
+            });
+        }
+
+        // Delete user (Admin only)
+        [HttpDelete("users/{id}")]
+        public async Task<IActionResult> DeleteUser(int id)
+        {
+            // TODO: Add [Authorize(Roles = "Admin")] attribute once JWT authentication is configured
+
+            var user = await _context.Users.FindAsync(id);
+            if (user == null)
+            {
+                return NotFound(new { Message = "User not found." });
+            }
+
+            // Prevent deleting the last admin
+            if (user.Role == UserRoles.Admin)
+            {
+                var adminCount = await _context.Users.CountAsync(u => u.Role == UserRoles.Admin);
+                if (adminCount <= 1)
+                {
+                    return BadRequest(new { Message = "Cannot delete the last admin user." });
+                }
+            }
+
+            _context.Users.Remove(user);
+            await _context.SaveChangesAsync();
+
+            return Ok(new { Message = "User deleted successfully." });
+        }
+
         [HttpPost("forgot-password")]
         public async Task<IActionResult> ForgotPassword([FromBody] ForgotPasswordRequest request)
         {

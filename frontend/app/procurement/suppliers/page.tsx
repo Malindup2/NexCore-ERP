@@ -1,13 +1,16 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Label } from "@/components/ui/label"
-import { Plus, Search, Building, Mail, Phone } from "lucide-react"
+import { Plus, Search, Building2, Mail, Phone, Edit, Trash2 } from "lucide-react"
+import { useRouter } from "next/navigation"
+
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5166"
 
 interface Supplier {
   id: number
@@ -15,19 +18,111 @@ interface Supplier {
   email: string
   phone: string
   address: string
-  totalPurchases: number
 }
 
-const mockSuppliers: Supplier[] = [
-  { id: 1, name: "Lanka Tech Solutions (Pvt) Ltd", email: "contact@lankatech.lk", phone: "+94112345678", address: "789 Union Place, Colombo 02", totalPurchases: 45 },
-  { id: 2, name: "Ceylon Office Supplies", email: "sales@ceylonoffice.lk", phone: "+94113456789", address: "456 Ward Place, Colombo 07", totalPurchases: 32 },
-  { id: 3, name: "Global Electronics Lanka", email: "info@globalelec.lk", phone: "+94114567890", address: "321 Baudhaloka Mawatha, Colombo 04", totalPurchases: 58 },
-]
-
 export default function SuppliersPage() {
-  const [suppliers] = useState<Supplier[]>(mockSuppliers)
+  const router = useRouter()
+  const [suppliers, setSuppliers] = useState<Supplier[]>([])
   const [searchQuery, setSearchQuery] = useState("")
-  const [isAddDialogOpen, setIsAddDialogOpen] = useState(false)
+  const [isDialogOpen, setIsDialogOpen] = useState(false)
+  const [editingSupplier, setEditingSupplier] = useState<Supplier | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [formData, setFormData] = useState({
+    name: "",
+    email: "",
+    phone: "",
+    address: ""
+  })
+
+  useEffect(() => {
+    const userRole = localStorage.getItem("userRole")
+    if (userRole !== "Admin" && userRole !== "SalesProcurement") {
+      router.push("/")
+      return
+    }
+    fetchSuppliers()
+  }, [router])
+
+  const fetchSuppliers = async () => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/procurement/suppliers`)
+      const data = await response.json()
+      setSuppliers(data)
+      setLoading(false)
+    } catch (error) {
+      console.error("Error fetching suppliers:", error)
+      setLoading(false)
+    }
+  }
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    try {
+      const url = editingSupplier 
+        ? `${API_BASE_URL}/api/procurement/suppliers/${editingSupplier.id}`
+        : `${API_BASE_URL}/api/procurement/suppliers`
+      
+      const response = await fetch(url, {
+        method: editingSupplier ? "PUT" : "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(formData)
+      })
+
+      if (response.ok) {
+        setIsDialogOpen(false)
+        resetForm()
+        fetchSuppliers()
+      }
+    } catch (error) {
+      console.error("Error saving supplier:", error)
+    }
+  }
+
+  const handleEdit = (supplier: Supplier) => {
+    setEditingSupplier(supplier)
+    setFormData({
+      name: supplier.name,
+      email: supplier.email,
+      phone: supplier.phone,
+      address: supplier.address
+    })
+    setIsDialogOpen(true)
+  }
+
+  const handleDelete = async (id: number) => {
+    if (!confirm("Are you sure you want to delete this supplier? This will fail if they have existing orders.")) return
+    
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/procurement/suppliers/${id}`, {
+        method: "DELETE"
+      })
+      if (response.ok) {
+        fetchSuppliers()
+      } else {
+        alert("Cannot delete supplier with existing orders")
+      }
+    } catch (error) {
+      console.error("Error deleting supplier:", error)
+    }
+  }
+
+  const resetForm = () => {
+    setFormData({
+      name: "",
+      email: "",
+      phone: "",
+      address: ""
+    })
+    setEditingSupplier(null)
+  }
+
+  if (loading) {
+    return (
+      <div className="flex justify-center items-center h-screen">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+      </div>
+    )
+  }
 
   const filteredSuppliers = suppliers.filter(supplier =>
     supplier.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -41,73 +136,20 @@ export default function SuppliersPage() {
           <h1 className="text-3xl font-bold tracking-tight">Suppliers</h1>
           <p className="text-muted-foreground">Manage your supplier relationships</p>
         </div>
-        <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
-          <DialogTrigger asChild>
-            <Button>
-              <Plus className="mr-2 h-4 w-4" />
-              Add Supplier
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="max-w-2xl">
-            <DialogHeader>
-              <DialogTitle>Add New Supplier</DialogTitle>
-              <DialogDescription>Enter supplier details</DialogDescription>
-            </DialogHeader>
-            <div className="grid gap-4 py-4">
-              <div className="space-y-2">
-                <Label htmlFor="supplierName">Supplier Name</Label>
-                <Input id="supplierName" placeholder="Enter company name" />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="supplierEmail">Email</Label>
-                <Input id="supplierEmail" type="email" placeholder="supplier@email.com" />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="supplierPhone">Phone</Label>
-                <Input id="supplierPhone" placeholder="+1234567890" />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="supplierAddress">Address</Label>
-                <Input id="supplierAddress" placeholder="Company address" />
-              </div>
-            </div>
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setIsAddDialogOpen(false)}>Cancel</Button>
-              <Button onClick={() => setIsAddDialogOpen(false)}>Add Supplier</Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
+        <Button onClick={() => { resetForm(); setIsDialogOpen(true) }}>
+          <Plus className="mr-2 h-4 w-4" />
+          Add Supplier
+        </Button>
       </div>
 
       <div className="grid gap-4 md:grid-cols-3">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Total Suppliers</CardTitle>
-            <Building className="h-4 w-4 text-muted-foreground" />
+            <Building2 className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{suppliers.length}</div>
-            <p className="text-xs text-muted-foreground">Active suppliers</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Purchases</CardTitle>
-            <Mail className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{suppliers.reduce((sum, s) => sum + s.totalPurchases, 0)}</div>
-            <p className="text-xs text-muted-foreground">Purchase orders placed</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Avg Purchases</CardTitle>
-            <Phone className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{Math.round(suppliers.reduce((sum, s) => sum + s.totalPurchases, 0) / suppliers.length)}</div>
-            <p className="text-xs text-muted-foreground">Per supplier</p>
           </CardContent>
         </Card>
       </div>
@@ -116,17 +158,19 @@ export default function SuppliersPage() {
         <CardHeader>
           <div className="flex items-center justify-between">
             <div>
-              <CardTitle>Supplier List</CardTitle>
-              <CardDescription>View and manage suppliers</CardDescription>
+              <CardTitle>Supplier Directory</CardTitle>
+              <CardDescription>View and manage all suppliers</CardDescription>
             </div>
-            <div className="relative">
-              <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder="Search suppliers..."
-                className="pl-8 w-[300px]"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-              />
+            <div className="flex items-center gap-2">
+              <div className="relative">
+                <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Search suppliers..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="pl-8 w-[300px]"
+                />
+              </div>
             </div>
           </div>
         </CardHeader>
@@ -134,38 +178,39 @@ export default function SuppliersPage() {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Supplier Name</TableHead>
-                <TableHead>Contact Information</TableHead>
+                <TableHead>Name</TableHead>
+                <TableHead>Email</TableHead>
+                <TableHead>Phone</TableHead>
                 <TableHead>Address</TableHead>
-                <TableHead className="text-right">Total Purchases</TableHead>
                 <TableHead className="text-right">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {filteredSuppliers.map((supplier) => (
                 <TableRow key={supplier.id}>
-                  <TableCell className="font-medium">
+                  <TableCell className="font-medium">{supplier.name}</TableCell>
+                  <TableCell>
                     <div className="flex items-center gap-2">
-                      <Building className="h-4 w-4 text-muted-foreground" />
-                      {supplier.name}
+                      <Mail className="h-4 w-4 text-muted-foreground" />
+                      {supplier.email}
                     </div>
                   </TableCell>
                   <TableCell>
-                    <div className="flex flex-col gap-1">
-                      <div className="flex items-center gap-2 text-sm">
-                        <Mail className="h-3 w-3 text-muted-foreground" />
-                        {supplier.email}
-                      </div>
-                      <div className="flex items-center gap-2 text-sm">
-                        <Phone className="h-3 w-3 text-muted-foreground" />
-                        {supplier.phone}
-                      </div>
+                    <div className="flex items-center gap-2">
+                      <Phone className="h-4 w-4 text-muted-foreground" />
+                      {supplier.phone}
                     </div>
                   </TableCell>
                   <TableCell>{supplier.address}</TableCell>
-                  <TableCell className="text-right font-semibold">{supplier.totalPurchases}</TableCell>
                   <TableCell className="text-right">
-                    <Button variant="ghost" size="sm">View Details</Button>
+                    <div className="flex justify-end gap-2">
+                      <Button variant="outline" size="sm" onClick={() => handleEdit(supplier)}>
+                        <Edit className="h-4 w-4" />
+                      </Button>
+                      <Button variant="destructive" size="sm" onClick={() => handleDelete(supplier.id)}>
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
                   </TableCell>
                 </TableRow>
               ))}
@@ -173,6 +218,66 @@ export default function SuppliersPage() {
           </Table>
         </CardContent>
       </Card>
+
+      <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>{editingSupplier ? "Edit Supplier" : "Add New Supplier"}</DialogTitle>
+            <DialogDescription>
+              {editingSupplier ? "Update supplier details" : "Enter supplier details"}
+            </DialogDescription>
+          </DialogHeader>
+          <form onSubmit={handleSubmit}>
+            <div className="grid gap-4 py-4">
+              <div className="space-y-2">
+                <Label htmlFor="name">Supplier Name</Label>
+                <Input
+                  id="name"
+                  value={formData.name}
+                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                  required
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="email">Email</Label>
+                <Input
+                  id="email"
+                  type="email"
+                  value={formData.email}
+                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                  required
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="phone">Phone</Label>
+                <Input
+                  id="phone"
+                  value={formData.phone}
+                  onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                  required
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="address">Address</Label>
+                <Input
+                  id="address"
+                  value={formData.address}
+                  onChange={(e) => setFormData({ ...formData, address: e.target.value })}
+                  required
+                />
+              </div>
+            </div>
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={() => setIsDialogOpen(false)}>
+                Cancel
+              </Button>
+              <Button type="submit">
+                {editingSupplier ? "Update" : "Add"} Supplier
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
