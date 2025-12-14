@@ -10,6 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge"
 import { Plus, Calendar, DollarSign, Users, CheckCircle } from "lucide-react"
 import { useRouter } from "next/navigation"
+import { toast } from "sonner"
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5166"
 
@@ -53,9 +54,10 @@ export default function PayrollRunsPage() {
       const response = await fetch(`${API_BASE_URL}/api/payroll/payroll-runs`)
       const data = await response.json()
       setRuns(data)
-      setLoading(false)
     } catch (error) {
       console.error("Error fetching payroll runs:", error)
+      toast.error("Failed to load payroll runs")
+    } finally {
       setLoading(false)
     }
   }
@@ -73,16 +75,16 @@ export default function PayrollRunsPage() {
 
       if (response.ok) {
         const result = await response.json()
-        alert(`Payroll processed successfully!\n${result.employeeCount} employees\nTotal: LKR ${result.totalPayroll.toLocaleString()}`)
+        toast.success(`Payroll processed successfully! ${result.employeeCount} employees - Total: LKR ${result.totalPayroll.toLocaleString()}`)
         setIsDialogOpen(false)
         fetchPayrollRuns()
       } else {
         const error = await response.json()
-        alert(error.message || "Failed to process payroll")
+        toast.error(error.message || "Failed to process payroll")
       }
     } catch (error) {
       console.error("Error processing payroll:", error)
-      alert("Failed to process payroll")
+      toast.error("Failed to process payroll")
     } finally {
       setProcessing(false)
     }

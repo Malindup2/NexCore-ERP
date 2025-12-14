@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { api } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -31,9 +30,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 import { CheckCircle, XCircle, Clock, Eye } from "lucide-react";
 import { format } from "date-fns";
+
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5166";
 
 interface LeaveRequest {
   id: number;
@@ -54,7 +55,6 @@ interface LeaveRequest {
 
 export default function LeaveApprovalsPage() {
   const router = useRouter();
-  const { toast } = useToast();
   const [leaveRequests, setLeaveRequests] = useState<LeaveRequest[]>([]);
   const [filteredRequests, setFilteredRequests] = useState<LeaveRequest[]>([]);
   const [loading, setLoading] = useState(true);
@@ -81,16 +81,23 @@ export default function LeaveApprovalsPage() {
 
   const fetchLeaveRequests = async () => {
     try {
-      const response = await api.get("/hr/Leave/requests");
-      setLeaveRequests(response.data);
-      setLoading(false);
+      const token = localStorage.getItem("token");
+      const response = await fetch(`${API_BASE_URL}/api/hr/Leave/requests`, {
+        headers: {
+          "Authorization": `Bearer ${token}`
+        }
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        setLeaveRequests(data);
+      } else {
+        throw new Error("Failed to fetch leave requests");
+      }
     } catch (error) {
       console.error("Error fetching leave requests:", error);
-      toast({
-        title: "Error",
-        description: "Failed to load leave requests",
-        variant: "destructive",
-      });
+      toast.error("Failed to load leave requests");
+    } finally {
       setLoading(false);
     }
   };
@@ -111,27 +118,32 @@ export default function LeaveApprovalsPage() {
     setProcessing(true);
     try {
       const userId = localStorage.getItem("userId");
-      await api.post(`/hr/Leave/requests/${selectedRequest.id}/approve`, {
-        approvedBy: parseInt(userId || "0"),
-        approvalNotes: approvalNotes,
+      const token = localStorage.getItem("token");
+      
+      const response = await fetch(`${API_BASE_URL}/api/hr/Leave/requests/${selectedRequest.id}/approve`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          approvedBy: parseInt(userId || "0"),
+          approvalNotes: approvalNotes,
+        })
       });
 
-      toast({
-        title: "Success",
-        description: "Leave request approved successfully",
-      });
-
-      setShowApproveDialog(false);
-      setApprovalNotes("");
-      setSelectedRequest(null);
-      fetchLeaveRequests();
+      if (response.ok) {
+        toast.success("Leave request approved successfully");
+        setShowApproveDialog(false);
+        setApprovalNotes("");
+        setSelectedRequest(null);
+        fetchLeaveRequests();
+      } else {
+        throw new Error("Failed to approve leave request");
+      }
     } catch (error: any) {
       console.error("Error approving leave:", error);
-      toast({
-        title: "Error",
-        description: error.response?.data?.message || "Failed to approve leave request",
-        variant: "destructive",
-      });
+      toast.error(error.message || "Failed to approve leave request");
     } finally {
       setProcessing(false);
     }
@@ -143,27 +155,32 @@ export default function LeaveApprovalsPage() {
     setProcessing(true);
     try {
       const userId = localStorage.getItem("userId");
-      await api.post(`/hr/Leave/requests/${selectedRequest.id}/reject`, {
-        rejectedBy: parseInt(userId || "0"),
-        rejectionNotes: approvalNotes,
+      const token = localStorage.getItem("token");
+      
+      const response = await fetch(`${API_BASE_URL}/api/hr/Leave/requests/${selectedRequest.id}/reject`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          rejectedBy: parseInt(userId || "0"),
+          rejectionNotes: approvalNotes,
+        })
       });
 
-      toast({
-        title: "Success",
-        description: "Leave request rejected",
-      });
-
-      setShowRejectDialog(false);
-      setApprovalNotes("");
-      setSelectedRequest(null);
-      fetchLeaveRequests();
+      if (response.ok) {
+        toast.success("Leave request rejected");
+        setShowRejectDialog(false);
+        setApprovalNotes("");
+        setSelectedRequest(null);
+        fetchLeaveRequests();
+      } else {
+        throw new Error("Failed to reject leave request");
+      }
     } catch (error: any) {
       console.error("Error rejecting leave:", error);
-      toast({
-        title: "Error",
-        description: error.response?.data?.message || "Failed to reject leave request",
-        variant: "destructive",
-      });
+      toast.error(error.message || "Failed to reject leave request");
     } finally {
       setProcessing(false);
     }

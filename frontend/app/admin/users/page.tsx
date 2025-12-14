@@ -13,6 +13,7 @@ import { ProtectedRoute } from "@/components/protected-route"
 import { UserRoles } from "@/lib/auth"
 import { Plus, UserCog, Edit, Trash2 } from "lucide-react"
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog"
+import { toast } from "sonner"
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5166"
 
@@ -30,8 +31,6 @@ export default function AdminUsersPage() {
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
   const [loading, setLoading] = useState(false)
-  const [error, setError] = useState("")
-  const [success, setSuccess] = useState("")
   const [selectedUser, setSelectedUser] = useState<User | null>(null)
   
   const [newUser, setNewUser] = useState({
@@ -72,8 +71,6 @@ export default function AdminUsersPage() {
   const handleCreateUser = async (e: React.FormEvent) => {
     e.preventDefault()
     setLoading(true)
-    setError("")
-    setSuccess("")
 
     try {
       const token = localStorage.getItem("token")
@@ -87,17 +84,17 @@ export default function AdminUsersPage() {
       })
 
       if (!response.ok) {
-        const errorText = await response.text()
-        throw new Error(errorText || "Failed to create user")
+        const errorData = await response.json()
+        throw new Error(errorData.message || "Failed to create user")
       }
 
       const data = await response.json()
-      setSuccess(`User ${data.user.username} created successfully!`)
+      toast.success(`User ${data.user.username} created successfully!`)
       setNewUser({ username: "", email: "", password: "", role: "" })
       setIsDialogOpen(false)
       fetchUsers()
     } catch (err: any) {
-      setError(err.message || "Failed to create user")
+      toast.error(err.message || "Failed to create user")
     } finally {
       setLoading(false)
     }
@@ -108,8 +105,6 @@ export default function AdminUsersPage() {
     if (!selectedUser) return
 
     setLoading(true)
-    setError("")
-    setSuccess("")
 
     try {
       const token = localStorage.getItem("token")
@@ -128,12 +123,12 @@ export default function AdminUsersPage() {
       }
 
       const data = await response.json()
-      setSuccess(`User ${data.user.username} updated successfully!`)
+      toast.success(`User ${data.user.username} updated successfully!`)
       setIsEditDialogOpen(false)
       setSelectedUser(null)
       fetchUsers()
     } catch (err: any) {
-      setError(err.message || "Failed to update user")
+      toast.error(err.message || "Failed to update user")
     } finally {
       setLoading(false)
     }
@@ -143,8 +138,6 @@ export default function AdminUsersPage() {
     if (!selectedUser) return
 
     setLoading(true)
-    setError("")
-    setSuccess("")
 
     try {
       const token = localStorage.getItem("token")
@@ -160,12 +153,12 @@ export default function AdminUsersPage() {
         throw new Error(result.message || "Failed to delete user")
       }
 
-      setSuccess(`User ${selectedUser.username} deleted successfully!`)
+      toast.success(`User ${selectedUser.username} deleted successfully!`)
       setIsDeleteDialogOpen(false)
       setSelectedUser(null)
       fetchUsers()
     } catch (err: any) {
-      setError(err.message || "Failed to delete user")
+      toast.error(err.message || "Failed to delete user")
     } finally {
       setLoading(false)
     }
@@ -270,11 +263,6 @@ export default function AdminUsersPage() {
                       </SelectContent>
                     </Select>
                   </div>
-                  {error && (
-                    <div className="text-sm text-red-600 bg-red-50 p-3 rounded-md">
-                      {error}
-                    </div>
-                  )}
                 </div>
                 <DialogFooter>
                   <Button type="button" variant="outline" onClick={() => setIsDialogOpen(false)}>
@@ -288,12 +276,6 @@ export default function AdminUsersPage() {
             </DialogContent>
           </Dialog>
         </div>
-
-        {success && (
-          <div className="text-sm text-green-600 bg-green-50 p-3 rounded-md">
-            {success}
-          </div>
-        )}
 
         <Card>
           <CardHeader>
@@ -403,11 +385,6 @@ export default function AdminUsersPage() {
                     </SelectContent>
                   </Select>
                 </div>
-                {error && (
-                  <div className="text-sm text-red-600 bg-red-50 p-3 rounded-md">
-                    {error}
-                  </div>
-                )}
               </div>
               <DialogFooter>
                 <Button type="button" variant="outline" onClick={() => setIsEditDialogOpen(false)}>

@@ -6,6 +6,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { DollarSign, Users, TrendingUp, BarChart3 } from "lucide-react"
 import { useRouter } from "next/navigation"
 import { Bar, BarChart, ResponsiveContainer, XAxis, YAxis, Tooltip } from "recharts"
+import { toast } from "sonner"
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5166"
 
@@ -41,9 +42,10 @@ export default function PayrollReportsPage() {
       const response = await fetch(`${API_BASE_URL}/api/payroll/summary`)
       const data = await response.json()
       setSummary(data)
-      setLoading(false)
     } catch (error) {
       console.error("Error fetching payroll summary:", error)
+      toast.error("Failed to load payroll reports")
+    } finally {
       setLoading(false)
     }
   }

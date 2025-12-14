@@ -9,6 +9,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Label } from "@/components/ui/label"
 import { Search, DollarSign, Users, TrendingUp, Edit } from "lucide-react"
 import { useRouter } from "next/navigation"
+import { toast } from "sonner"
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5166"
 
@@ -49,9 +50,10 @@ export default function SalaryRecordsPage() {
       const response = await fetch(`${API_BASE_URL}/api/payroll/salaries`)
       const data = await response.json()
       setSalaries(data)
-      setLoading(false)
     } catch (error) {
       console.error("Error fetching salaries:", error)
+      toast.error("Failed to load salary records")
+    } finally {
       setLoading(false)
     }
   }
@@ -77,12 +79,16 @@ export default function SalaryRecordsPage() {
       })
 
       if (response.ok) {
+        toast.success("Salary updated successfully")
         setIsDialogOpen(false)
         setEditingSalary(null)
         fetchSalaries()
+      } else {
+        toast.error("Failed to update salary")
       }
     } catch (error) {
       console.error("Error updating salary:", error)
+      toast.error("Failed to update salary")
     }
   }
 
