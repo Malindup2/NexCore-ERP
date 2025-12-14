@@ -106,7 +106,7 @@ export default function EmployeesPage() {
         </div>
       </div>
     )
-  )
+  }
 
   return (
     <ProtectedRoute requiredRoles={[UserRoles.Admin, UserRoles.HRManager]}>

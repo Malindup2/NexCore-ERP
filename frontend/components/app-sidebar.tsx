@@ -194,6 +194,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
           { title: "Employees", url: "/hr/employees" },
           { title: "Attendance", url: "/hr/attendance" },
           { title: "Leave Management", url: "/hr/leave" },
+          { title: "Leave Approvals", url: "/hr/leave-approvals" },
           { title: "Performance Reviews", url: "/hr/reviews" },
           { title: "Payroll", url: "/hr/payroll" },
         ],
@@ -240,6 +241,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
           { title: "Employees", url: "/hr/employees" },
           { title: "Attendance", url: "/hr/attendance" },
           { title: "Leave Management", url: "/hr/leave" },
+          { title: "Leave Approvals", url: "/hr/leave-approvals" },
           { title: "Performance Reviews", url: "/hr/reviews" },
           { title: "Payroll", url: "/hr/payroll" },
         ],
@@ -345,7 +347,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                                 <CollapsibleContent>
                                     <SidebarMenuSub className="overflow-hidden">
                                         <AnimatePresence>
-                                          {item.items.map((subItem, index) => (
+                                          {item.items.map((subItem: any, index: number) => (
                                             <SidebarMenuSubItem key={subItem.title}>
                                               <motion.div
                                                 initial={{ opacity: 0, x: -10 }}

@@ -359,13 +359,25 @@ namespace HRService.Controllers
 
         // GET: api/Leave/requests
         [HttpGet("requests")]
-        public async Task<IActionResult> GetAllLeaveRequests()
+        public async Task<IActionResult> GetAllLeaveRequests([FromQuery] string? status)
         {
             try
             {
-                var leaveRequests = await _context.LeaveRequests
+                var query = _context.LeaveRequests
                     .Include(lr => lr.Employee)
                     .Include(lr => lr.LeaveType)
+                    .AsQueryable();
+
+                // Filter by status if provided
+                if (!string.IsNullOrEmpty(status))
+                {
+                    if (Enum.TryParse<LeaveRequestStatus>(status, true, out var statusEnum))
+                    {
+                        query = query.Where(lr => lr.Status == statusEnum);
+                    }
+                }
+
+                var leaveRequests = await query
                     .OrderByDescending(lr => lr.CreatedAt)
                     .Select(lr => new LeaveRequestDto
                     {

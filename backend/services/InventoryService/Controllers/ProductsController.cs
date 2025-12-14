@@ -104,5 +104,44 @@ namespace InventoryService.Controllers
 
             return Ok(new { Message = "Stock updated", NewQuantity = product.Quantity });
         }
+
+        // PUT: Update Product
+        [HttpPut("{id}")]
+        public async Task<IActionResult> UpdateProduct(int id, [FromBody] CreateProductRequest request)
+        {
+            var product = await _context.Products.FindAsync(id);
+            if (product == null) return NotFound("Product not found");
+
+            // Check if SKU is being changed to one that already exists
+            if (product.SKU != request.SKU && await _context.Products.AnyAsync(p => p.SKU == request.SKU))
+            {
+                return BadRequest($"Product with SKU '{request.SKU}' already exists.");
+            }
+
+            product.Name = request.Name;
+            product.SKU = request.SKU;
+            product.Description = request.Description;
+            product.Price = request.Price;
+            product.CostPrice = request.CostPrice;
+            product.Quantity = request.Quantity;
+            product.UpdatedAt = DateTime.UtcNow;
+
+            await _context.SaveChangesAsync();
+
+            return Ok(new { Message = "Product updated successfully", Product = product });
+        }
+
+        // DELETE: Delete Product
+        [HttpDelete("{id}")]
+        public async Task<IActionResult> DeleteProduct(int id)
+        {
+            var product = await _context.Products.FindAsync(id);
+            if (product == null) return NotFound("Product not found");
+
+            _context.Products.Remove(product);
+            await _context.SaveChangesAsync();
+
+            return Ok(new { Message = "Product deleted successfully" });
+        }
     }
 }
