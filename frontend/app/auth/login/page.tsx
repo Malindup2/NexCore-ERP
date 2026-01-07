@@ -24,7 +24,7 @@ export default function LoginPage() {
     e.preventDefault()
     setIsLoading(true)
     setError("")
-    
+
     try {
       const response = await fetch(`${API_BASE_URL}/api/auth/login`, {
         method: "POST",
@@ -38,16 +38,16 @@ export default function LoginPage() {
       }
 
       const data = await response.json()
-      
+
       // Store token and user data
       setAuthData(data.Token || data.token, data.User || data.user)
-      
+
       // Show success toast
       const user = data.User || data.user
       toast.success("Login successful!", {
         description: `Welcome back, ${user.username}!`
       })
-      
+
       // Redirect based on user role
       if (user?.role === "Admin") {
         router.push("/admin")
@@ -65,7 +65,7 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800 p-4">
+    <div className="min-h-screen flex items-center justify-center bg-white dark:bg-gray-950 p-4">
       <Card className="w-full max-w-md border-zinc-200 dark:border-zinc-800 shadow-xl">
         <CardHeader className="space-y-1 text-center pb-6 pt-8">
           <div className="flex justify-center mb-4">
@@ -124,21 +124,12 @@ export default function LoginPage() {
           <CardFooter className="flex flex-col space-y-4 px-8 pb-8 pt-2 text-center">
             <div className="text-sm text-muted-foreground">
               Don&apos;t have an account?{" "}
-              <Link 
-                href="/auth/register" 
+              <Link
+                href="/auth/register"
                 className="font-medium text-primary hover:text-primary/80 transition-colors underline-offset-4 hover:underline"
               >
                 Create an account
               </Link>
-            </div>
-            <div className="w-full p-4 bg-blue-50 dark:bg-blue-900/20 rounded-md border border-blue-200 dark:border-blue-800">
-              <p className="text-xs font-semibold text-blue-900 dark:text-blue-100 mb-2">Demo Credentials:</p>
-              <p className="text-xs text-blue-700 dark:text-blue-300">
-                <strong>Admin:</strong> admin@nexcore.lk / Admin@123
-              </p>
-              <p className="text-xs text-blue-700 dark:text-blue-300 mt-1">
-                <strong>Or register</strong> as an employee to test the system
-              </p>
             </div>
           </CardFooter>
         </form>

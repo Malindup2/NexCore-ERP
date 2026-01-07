@@ -39,7 +39,7 @@ export async function apiRequest<T>(
   url: string,
   options: RequestInit = {}
 ): Promise<T> {
-  const token = localStorage.getItem('auth_token');
+  const token = localStorage.getItem('token');
 
   const headers: HeadersInit = {
     'Content-Type': 'application/json',

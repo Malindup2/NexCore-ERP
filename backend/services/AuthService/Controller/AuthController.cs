@@ -3,6 +3,7 @@ using AuthService.DTOs;
 using AuthService.Models;
 using AuthService.Services;
 using BCrypt.Net;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Shared.Messaging;
@@ -107,11 +108,10 @@ namespace AuthService.Controllers
         }
 
         // Admin endpoint to create users with any role
+        [Authorize(Roles = "Admin")]
         [HttpPost("admin/create-user")]
         public async Task<IActionResult> CreateUser([FromBody] CreateUserRequest request)
         {
-            // TODO: Add [Authorize(Roles = "Admin")] attribute once JWT authentication is configured
-            // For now, this endpoint is open - secure it in production!
 
             // Validate role
             var validRoles = new[] { UserRoles.Admin, UserRoles.HRManager, UserRoles.Accountant, UserRoles.SalesProcurement, UserRoles.Employee };
@@ -168,10 +168,10 @@ namespace AuthService.Controllers
         }
 
         // Get all users (Admin only)
+        [Authorize(Roles = "Admin")]
         [HttpGet("users")]
         public async Task<IActionResult> GetAllUsers()
         {
-            // TODO: Add [Authorize(Roles = "Admin")] attribute once JWT authentication is configured
             
             var users = await _context.Users
                 .OrderByDescending(u => u.CreatedAt)
@@ -189,10 +189,10 @@ namespace AuthService.Controllers
         }
 
         // Update user (Admin only)
+        [Authorize(Roles = "Admin")]
         [HttpPut("users/{id}")]
         public async Task<IActionResult> UpdateUser(int id, [FromBody] UpdateUserRequest request)
         {
-            // TODO: Add [Authorize(Roles = "Admin")] attribute once JWT authentication is configured
 
             var user = await _context.Users.FindAsync(id);
             if (user == null)
@@ -262,10 +262,10 @@ namespace AuthService.Controllers
         }
 
         // Delete user (Admin only)
+        [Authorize(Roles = "Admin")]
         [HttpDelete("users/{id}")]
         public async Task<IActionResult> DeleteUser(int id)
         {
-            // TODO: Add [Authorize(Roles = "Admin")] attribute once JWT authentication is configured
 
             var user = await _context.Users.FindAsync(id);
             if (user == null)
