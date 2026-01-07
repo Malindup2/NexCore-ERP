@@ -2,11 +2,11 @@
 
 import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
-import { getUser, hasRole } from "@/lib/auth"
+import { getUser, hasRole, UserRole } from "@/lib/auth"
 
 interface ProtectedRouteProps {
   children: React.ReactNode
-  requiredRoles?: string[]
+  requiredRoles?: UserRole[]
   redirectTo?: string
 }
 

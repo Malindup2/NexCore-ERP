@@ -109,7 +109,90 @@ namespace SalesService.Controllers
         [HttpGet("orders")]
         public async Task<IActionResult> GetOrders()
         {
-            return Ok(await _context.SalesOrders.Include(o => o.Items).ToListAsync());
+            var orders = await _context.SalesOrders
+                .Include(o => o.Items)
+                .OrderByDescending(o => o.OrderDate)
+                .ToListAsync();
+            return Ok(orders);
+        }
+
+        // GET: Get Customers
+        [HttpGet("customers")]
+        public async Task<IActionResult> GetCustomers()
+        {
+            var customers = await _context.Customers.ToListAsync();
+            return Ok(customers);
+        }
+
+        // GET: Get Customer by ID
+        [HttpGet("customers/{id}")]
+        public async Task<IActionResult> GetCustomer(int id)
+        {
+            var customer = await _context.Customers.FindAsync(id);
+            if (customer == null) return NotFound("Customer not found");
+            return Ok(customer);
+        }
+
+        // GET: Get Order by ID
+        [HttpGet("orders/{id}")]
+        public async Task<IActionResult> GetOrder(int id)
+        {
+            var order = await _context.SalesOrders
+                .Include(o => o.Items)
+                .FirstOrDefaultAsync(o => o.Id == id);
+            
+            if (order == null) return NotFound("Order not found");
+            return Ok(order);
+        }
+
+        // PUT: Update Customer
+        [HttpPut("customers/{id}")]
+        public async Task<IActionResult> UpdateCustomer(int id, [FromBody] CreateCustomerRequest request)
+        {
+            var customer = await _context.Customers.FindAsync(id);
+            if (customer == null) return NotFound("Customer not found");
+
+            customer.Name = request.Name;
+            customer.Email = request.Email;
+            customer.Phone = request.Phone;
+            customer.Address = request.Address;
+
+            await _context.SaveChangesAsync();
+
+            return Ok(new { Message = "Customer updated successfully", Customer = customer });
+        }
+
+        // DELETE: Delete Customer
+        [HttpDelete("customers/{id}")]
+        public async Task<IActionResult> DeleteCustomer(int id)
+        {
+            var customer = await _context.Customers.FindAsync(id);
+            if (customer == null) return NotFound("Customer not found");
+
+            // Check if customer has orders
+            var hasOrders = await _context.SalesOrders.AnyAsync(o => o.CustomerId == id);
+            if (hasOrders)
+            {
+                return BadRequest(new { Message = "Cannot delete customer with existing orders" });
+            }
+
+            _context.Customers.Remove(customer);
+            await _context.SaveChangesAsync();
+
+            return Ok(new { Message = "Customer deleted successfully" });
+        }
+
+        // PUT: Update Order Status
+        [HttpPut("orders/{id}/status")]
+        public async Task<IActionResult> UpdateOrderStatus(int id, [FromBody] UpdateOrderStatusRequest request)
+        {
+            var order = await _context.SalesOrders.FindAsync(id);
+            if (order == null) return NotFound("Order not found");
+
+            order.Status = request.Status;
+            await _context.SaveChangesAsync();
+
+            return Ok(new { Message = "Order status updated", Order = order });
         }
     }
 }

@@ -150,6 +150,66 @@ namespace PayrollService.Controllers
             return Ok(payrollRun);
         }
 
+        // Get employee payroll history
+        [HttpGet("employee/{employeeId}/history")]
+        public async Task<IActionResult> GetEmployeePayrollHistory(int employeeId)
+        {
+            // Get the employee's salary record
+            var salaryRecord = await _context.SalaryRecords
+                .FirstOrDefaultAsync(s => s.EmployeeId == employeeId);
+
+            if (salaryRecord == null)
+                return NotFound(new { Message = $"No salary record found for Employee ID {employeeId}" });
+
+            // Get all payroll runs
+            var payrollRuns = await _context.PayrollRuns
+                .OrderByDescending(p => p.Year)
+                .ThenByDescending(p => p.Month)
+                .ToListAsync();
+
+            // Create payroll history entries
+            var payrollHistory = payrollRuns.Select(run => new
+            {
+                id = $"{employeeId}-{run.Year}-{run.Month}",
+                employeeId = employeeId,
+                month = run.Month,
+                year = run.Year,
+                monthYear = GetMonthName(run.Month) + " " + run.Year,
+                baseSalary = salaryRecord.BasicSalary,
+                allowances = salaryRecord.Allowances,
+                overtime = 0m, // Can be extended later
+                bonus = 0m, // Can be extended later
+                deductions = 0m, // Can be extended later
+                tax = salaryRecord.NetSalary * 0.1m, // Simple 10% tax calculation
+                netSalary = salaryRecord.NetSalary,
+                status = run.Status,
+                paidDate = run.ProcessedDate,
+                notes = $"Payroll for {GetMonthName(run.Month)} {run.Year}"
+            }).ToList();
+
+            // Calculate summary
+            var currentYear = DateTime.UtcNow.Year;
+            var yearToDateTotal = payrollHistory
+                .Where(p => p.year == currentYear && p.status == "Completed")
+                .Sum(p => p.netSalary);
+
+            var latestPayment = payrollHistory.FirstOrDefault();
+
+            var summary = new
+            {
+                totalRecords = payrollHistory.Count,
+                yearToDateTotal = yearToDateTotal,
+                latestPayment = latestPayment
+            };
+
+            return Ok(new { records = payrollHistory, summary });
+        }
+
+        private string GetMonthName(int month)
+        {
+            return new DateTime(2000, month, 1).ToString("MMMM");
+        }
+
         // Calculate payroll summary
         [HttpGet("summary")]
         public async Task<IActionResult> GetPayrollSummary()

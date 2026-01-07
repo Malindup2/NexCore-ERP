@@ -3,11 +3,13 @@
 import { useState } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
+import { Mail, Lock } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { setAuthData } from "@/lib/auth"
+import { toast } from "sonner"
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5166"
 
@@ -22,7 +24,7 @@ export default function LoginPage() {
     e.preventDefault()
     setIsLoading(true)
     setError("")
-    
+
     try {
       const response = await fetch(`${API_BASE_URL}/api/auth/login`, {
         method: "POST",
@@ -36,13 +38,26 @@ export default function LoginPage() {
       }
 
       const data = await response.json()
-      
+
       // Store token and user data
       setAuthData(data.Token || data.token, data.User || data.user)
-      
-      // Redirect to dashboard
-      router.push("/")
+
+      // Show success toast
+      const user = data.User || data.user
+      toast.success("Login successful!", {
+        description: `Welcome back, ${user.username}!`
+      })
+
+      // Redirect based on user role
+      if (user?.role === "Admin") {
+        router.push("/admin")
+      } else {
+        router.push("/")
+      }
     } catch (err: any) {
+      toast.error("Login failed", {
+        description: err.message || "Invalid email or password"
+      })
       setError(err.message || "Invalid email or password")
     } finally {
       setIsLoading(false)
@@ -50,29 +65,23 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="w-full max-w-[450px] mx-auto">
-      <Card className="border-zinc-200 dark:border-zinc-800 shadow-xl bg-card/50 backdrop-blur-sm">
-        <CardHeader className="space-y-1 text-center pb-8 pt-8">
-          <div className="flex justify-center mb-4 lg:hidden">
-            <img src="/assets/logo.png" alt="NexCore ERP" className="h-12 w-12" />
+    <div className="min-h-screen flex items-center justify-center bg-white dark:bg-gray-950 p-4">
+      <Card className="w-full max-w-md border-zinc-200 dark:border-zinc-800 shadow-xl">
+        <CardHeader className="space-y-1 text-center pb-6 pt-8">
+          <div className="flex justify-center mb-4">
+            <img src="/assets/logo.png" alt="NexCore ERP" className="h-16 w-16" />
           </div>
-          <CardTitle className="text-2xl font-bold">Welcome back</CardTitle>
-          <CardDescription>
+          <CardTitle className="text-3xl font-bold">Welcome back</CardTitle>
+          <CardDescription className="text-base">
             Enter your credentials to access your account
           </CardDescription>
         </CardHeader>
         <form onSubmit={handleLogin}>
           <CardContent className="space-y-4 px-8">
-            {error && (
-              <Alert variant="destructive" className="animate-in fade-in slide-in-from-top-2">
-                <AlertCircle className="h-4 w-4" />
-                <AlertDescription>{error}</AlertDescription>
-              </Alert>
-            )}
             <div className="space-y-2">
               <Label htmlFor="email">Email</Label>
               <div className="relative">
-                <Mail className="absolute left-3 top-2.5 h-5 w-5 text-muted-foreground" />
+                <Mail className="absolute left-3 top-3 h-5 w-5 text-muted-foreground" />
                 <Input
                   id="email"
                   type="email"
@@ -81,22 +90,16 @@ export default function LoginPage() {
                   onChange={(e) => setEmail(e.target.value)}
                   required
                   disabled={isLoading}
-                  className="pl-10 h-11 bg-background/50 border-zinc-200 dark:border-zinc-800 focus:ring-2 focus:ring-primary/20 transition-all"
+                  className="pl-10 h-11"
                 />
               </div>
             </div>
             <div className="space-y-2">
               <div className="flex items-center justify-between">
                 <Label htmlFor="password">Password</Label>
-                <Link 
-                  href="/auth/forgot-password" 
-                  className="text-sm font-medium text-primary hover:text-primary/80 transition-colors"
-                >
-                  Forgot password?
-                </Link>
               </div>
               <div className="relative">
-                <Lock className="absolute left-3 top-2.5 h-5 w-5 text-muted-foreground" />
+                <Lock className="absolute left-3 top-3 h-5 w-5 text-muted-foreground" />
                 <Input
                   id="password"
                   type="password"
@@ -105,39 +108,28 @@ export default function LoginPage() {
                   onChange={(e) => setPassword(e.target.value)}
                   required
                   disabled={isLoading}
-                  className="pl-10 h-11 bg-background/50 border-zinc-200 dark:border-zinc-800 focus:ring-2 focus:ring-primary/20 transition-all"
+                  className="pl-10 h-11"
                 />
               </div>
             </div>
             {error && (
-              <div className="text-sm text-red-600 bg-red-50 p-3 rounded-md">
+              <div className="text-sm text-red-600 bg-red-50 dark:bg-red-900/20 p-3 rounded-md border border-red-200 dark:border-red-800">
                 {error}
               </div>
             )}
-          </CardContent>
-          <CardFooter className="flex flex-col space-y-4">
-            <Button type="submit" className="w-full" disabled={isLoading}>
+            <Button type="submit" className="w-full h-11" disabled={isLoading}>
               {isLoading ? "Signing in..." : "Sign in"}
             </Button>
           </CardContent>
           <CardFooter className="flex flex-col space-y-4 px-8 pb-8 pt-2 text-center">
             <div className="text-sm text-muted-foreground">
               Don&apos;t have an account?{" "}
-              <Link 
-                href="/auth/register" 
+              <Link
+                href="/auth/register"
                 className="font-medium text-primary hover:text-primary/80 transition-colors underline-offset-4 hover:underline"
               >
                 Create an account
               </Link>
-            </p>
-            <div className="mt-4 p-4 bg-blue-50 rounded-md text-left">
-              <p className="text-xs font-semibold text-blue-900 mb-2">Demo Credentials:</p>
-              <p className="text-xs text-blue-700">
-                <strong>Admin:</strong> admin@nexcore.lk / Admin@123
-              </p>
-              <p className="text-xs text-blue-700 mt-1">
-                <strong>Or register</strong> as an employee to test the system
-              </p>
             </div>
           </CardFooter>
         </form>

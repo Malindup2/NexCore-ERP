@@ -59,9 +59,21 @@ export const isAuthenticated = (): boolean => {
 };
 
 // Check if user has specific role
-export const hasRole = (role: UserRole): boolean => {
+export const hasRole = (role: UserRole | UserRole[]): boolean => {
   const user = getUser();
-  return user?.role === role;
+  if (!user) return false;
+  
+  if (Array.isArray(role)) {
+    return role.includes(user.role);
+  }
+  return user.role === role;
+};
+
+// Check if user has any of the specified roles
+export const hasAnyRole = (roles: UserRole[]): boolean => {
+  const user = getUser();
+  if (!user) return false;
+  return roles.includes(user.role);
 };
 
 // Check if user is admin

@@ -132,7 +132,88 @@ namespace ProcurementService.Controllers
         [HttpGet("orders")]
         public async Task<IActionResult> GetOrders()
         {
-            return Ok(await _context.PurchaseOrders.ToListAsync());
+            var orders = await _context.PurchaseOrders
+                .OrderByDescending(o => o.OrderDate)
+                .ToListAsync();
+            return Ok(orders);
+        }
+
+        // GET: Get Suppliers
+        [HttpGet("suppliers")]
+        public async Task<IActionResult> GetSuppliers()
+        {
+            var suppliers = await _context.Suppliers.ToListAsync();
+            return Ok(suppliers);
+        }
+
+        // GET: Get Supplier by ID
+        [HttpGet("suppliers/{id}")]
+        public async Task<IActionResult> GetSupplier(int id)
+        {
+            var supplier = await _context.Suppliers.FindAsync(id);
+            if (supplier == null) return NotFound("Supplier not found");
+            return Ok(supplier);
+        }
+
+        // GET: Get Order by ID
+        [HttpGet("orders/{id}")]
+        public async Task<IActionResult> GetOrder(int id)
+        {
+            var order = await _context.PurchaseOrders
+                .FirstOrDefaultAsync(o => o.Id == id);
+            
+            if (order == null) return NotFound("Order not found");
+            return Ok(order);
+        }
+
+        // PUT: Update Supplier
+        [HttpPut("suppliers/{id}")]
+        public async Task<IActionResult> UpdateSupplier(int id, [FromBody] CreateSupplierRequest request)
+        {
+            var supplier = await _context.Suppliers.FindAsync(id);
+            if (supplier == null) return NotFound("Supplier not found");
+
+            supplier.Name = request.Name;
+            supplier.Email = request.Email;
+            supplier.Phone = request.Phone;
+            supplier.Address = request.Address;
+
+            await _context.SaveChangesAsync();
+
+            return Ok(new { Message = "Supplier updated successfully", Supplier = supplier });
+        }
+
+        // DELETE: Delete Supplier
+        [HttpDelete("suppliers/{id}")]
+        public async Task<IActionResult> DeleteSupplier(int id)
+        {
+            var supplier = await _context.Suppliers.FindAsync(id);
+            if (supplier == null) return NotFound("Supplier not found");
+
+            // Check if supplier has orders
+            var hasOrders = await _context.PurchaseOrders.AnyAsync(o => o.SupplierId == id);
+            if (hasOrders)
+            {
+                return BadRequest(new { Message = "Cannot delete supplier with existing orders" });
+            }
+
+            _context.Suppliers.Remove(supplier);
+            await _context.SaveChangesAsync();
+
+            return Ok(new { Message = "Supplier deleted successfully" });
+        }
+
+        // PUT: Update Order Status
+        [HttpPut("orders/{id}/status")]
+        public async Task<IActionResult> UpdateOrderStatus(int id, [FromBody] UpdateOrderStatusRequest request)
+        {
+            var order = await _context.PurchaseOrders.FindAsync(id);
+            if (order == null) return NotFound("Order not found");
+
+            order.Status = request.Status;
+            await _context.SaveChangesAsync();
+
+            return Ok(new { Message = "Order status updated", Order = order });
         }
     }
 }
