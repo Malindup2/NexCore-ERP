@@ -1,4 +1,5 @@
 using AccountingService.Data;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
@@ -6,6 +7,7 @@ namespace AccountingService.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
+    [Authorize(Roles = "Admin,Accountant")]
     public class ReportsController : ControllerBase
     {
         private readonly AccountingDbContext _context;

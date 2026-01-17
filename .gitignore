@@ -1,6 +1,8 @@
 # .NET
 bin/
 obj/
+*.user
+*.suo
 
 # Node
 node_modules/
@@ -11,10 +13,28 @@ out/
 # IDE
 .vscode/
 .idea/
-.vs
+.vs/
 
 # Logs
 *.log
 
 # Docker data
 docker-data/
+
+
+
+# Development config files
+**/appsettings.json
+**/appsettings.Development.json
+
+# Keep production templates 
+!**/appsettings.Production.json
+
+# Environment files
+.env
+.env.local
+.env.*.local
+*.env
+
+# User secrets
+secrets.json

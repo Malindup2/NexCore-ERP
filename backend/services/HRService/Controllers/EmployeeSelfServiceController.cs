@@ -1,6 +1,7 @@
 using HRService.Data;
 using HRService.Models;
 using HRService.DTOs;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
@@ -8,6 +9,7 @@ namespace HRService.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
+    [Authorize]
     public class EmployeeSelfServiceController : ControllerBase
     {
         private readonly HrDbContext _context;

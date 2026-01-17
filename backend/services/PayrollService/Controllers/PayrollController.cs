@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using PayrollService.Data;
@@ -8,6 +9,7 @@ namespace PayrollService.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
+    [Authorize(Roles = "Admin,Accountant")]
     public class PayrollController : ControllerBase
     {
         private readonly PayrollDbContext _context;
