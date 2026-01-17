@@ -1,5 +1,6 @@
 using AccountingService.Data;
 using AccountingService.Models;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
@@ -7,6 +8,7 @@ namespace AccountingService.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
+    [Authorize(Roles = "Admin,Accountant")]
     public class JournalEntriesController : ControllerBase
     {
         private readonly AccountingDbContext _context;

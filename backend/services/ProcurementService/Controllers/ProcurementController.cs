@@ -1,4 +1,5 @@
 ﻿using InventoryService.Models;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using ProcurementService.Data;
@@ -11,6 +12,7 @@ namespace ProcurementService.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
+    [Authorize(Roles = "Admin,SalesProcurement")]
     public class ProcurementController : ControllerBase
     {
         private readonly IRabbitMQProducer _producer;

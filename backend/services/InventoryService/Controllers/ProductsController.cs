@@ -1,6 +1,7 @@
 ﻿using InventoryService.Data;
 using InventoryService.DTOs;
 using InventoryService.Models;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Shared.Events;
@@ -10,6 +11,7 @@ namespace InventoryService.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
+    [Authorize(Roles = "Admin,SalesProcurement")]
     public class ProductsController : ControllerBase
     {
         private readonly InventoryDbContext _context;

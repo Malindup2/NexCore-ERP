@@ -1,5 +1,6 @@
 using HRService.Data;
 using HRService.Models;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
@@ -7,6 +8,7 @@ namespace HRService.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
+    [Authorize(Roles = "Admin,HRManager")]
     public class EmployeesController : ControllerBase
     {
         private readonly HrDbContext _context;

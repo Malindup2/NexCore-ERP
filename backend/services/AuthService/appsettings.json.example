@@ -1,0 +1,28 @@
+{
+    "ConnectionStrings": {
+        "DefaultConnection": "Host=localhost;Port=5432;Database=auth_db;Username=postgres;Password=YOUR_DB_PASSWORD"
+    },
+    "JwtSettings": {
+        "Secret": "YOUR_JWT_SECRET_MIN_32_CHARACTERS_LONG",
+        "Issuer": "NexCoreAuth",
+        "Audience": "NexCoreClient",
+        "ExpiryMinutes": 60
+    },
+    "EmailSettings": {
+        "SmtpHost": "smtp.gmail.com",
+        "SmtpPort": "587",
+        "SmtpUsername": "your-email@gmail.com",
+        "SmtpPassword": "YOUR_GMAIL_APP_PASSWORD",
+        "FromEmail": "your-email@gmail.com",
+        "FromName": "NexCore ERP"
+    },
+    "AppSettings": {
+        "FrontendUrl": "http://localhost:3000"
+    },
+    "Logging": {
+        "LogLevel": {
+            "Default": "Information",
+            "Microsoft": "Warning"
+        }
+    }
+}

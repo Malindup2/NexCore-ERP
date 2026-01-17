@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using SalesService.Data;
 using SalesService.DTOs;
@@ -10,6 +11,7 @@ namespace SalesService.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
+    [Authorize(Roles = "Admin,SalesProcurement")]
     public class SalesController : ControllerBase
     {
         private readonly SalesDbContext _context;
