@@ -39,7 +39,7 @@ export default function LoginPage() {
 
       const data = await response.json()
 
-      // Store token and user data
+      // Store token and user data (ensure legacy keys are set)
       setAuthData(data.Token || data.token, data.User || data.user)
 
       // Show success toast

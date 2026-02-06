@@ -30,7 +30,7 @@ export default function PayrollReportsPage() {
 
   useEffect(() => {
     const userRole = localStorage.getItem("userRole")
-    if (userRole !== "Admin" && userRole !== "HRManager") {
+    if (userRole !== "Admin" && userRole !== "Accountant" && userRole !== "HRManager") {
       router.push("/")
       return
     }
@@ -39,7 +39,12 @@ export default function PayrollReportsPage() {
 
   const fetchPayrollSummary = async () => {
     try {
-      const response = await fetch(`${API_BASE_URL}/api/payroll/summary`)
+      const token = localStorage.getItem("token")
+      const response = await fetch(`${API_BASE_URL}/api/payroll/summary`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+      })
+
+      if (!response.ok) throw new Error("Failed to load summary")
       const data = await response.json()
       setSummary(data)
     } catch (error) {
@@ -216,7 +221,9 @@ export default function PayrollReportsPage() {
               <div className="text-right">
                 <p className="text-2xl font-bold">LKR {summary.totalBasicSalary.toLocaleString()}</p>
                 <p className="text-xs text-muted-foreground">
-                  {((summary.totalBasicSalary / summary.totalNetSalary) * 100).toFixed(1)}% of total
+                  {summary.totalNetSalary > 0
+                    ? ((summary.totalBasicSalary / summary.totalNetSalary) * 100).toFixed(1)
+                    : "0.0"}% of total
                 </p>
               </div>
             </div>
@@ -228,7 +235,9 @@ export default function PayrollReportsPage() {
               <div className="text-right">
                 <p className="text-2xl font-bold">LKR {summary.totalAllowances.toLocaleString()}</p>
                 <p className="text-xs text-muted-foreground">
-                  {((summary.totalAllowances / summary.totalNetSalary) * 100).toFixed(1)}% of total
+                  {summary.totalNetSalary > 0
+                    ? ((summary.totalAllowances / summary.totalNetSalary) * 100).toFixed(1)
+                    : "0.0"}% of total
                 </p>
               </div>
             </div>
