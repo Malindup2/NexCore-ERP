@@ -6,57 +6,105 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
 import { Clock, CheckCircle, XCircle, Calendar } from "lucide-react"
+import { getUser } from "@/lib/auth"
+import { useRouter } from "next/navigation"
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5003"
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5166"
 
-interface TodayAttendance {
-  checkedIn: boolean
-  attendanceId?: number
+interface AttendanceRecord {
+  id: number
+  date: string
   checkInTime?: string
   checkOutTime?: string
   workingHours?: number
-  status?: string
+  overtimeHours?: number
+  status: string
+  location?: string
+}
+
+interface AttendanceData {
+  records: AttendanceRecord[]
+  summary: {
+    totalPresent: number
+    totalWorkingHours: number
+    totalOvertimeHours: number
+    attendancePercentage: number
+  }
 }
 
 export default function AttendancePage() {
-  const [todayAttendance, setTodayAttendance] = useState<TodayAttendance | null>(null)
-  const [loading, setLoading] = useState(false)
+  const router = useRouter()
+  const [user, setUser] = useState<any>(null)
+  const [attendanceData, setAttendanceData] = useState<AttendanceData | null>(null)
+  const [todayRecord, setTodayRecord] = useState<AttendanceRecord | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [actionLoading, setActionLoading] = useState(false)
   const [currentTime, setCurrentTime] = useState(new Date())
-  
-  // Mock employee ID - in real app, get from auth context
-  const employeeId = 1
 
   useEffect(() => {
-    fetchTodayAttendance()
+    const currentUser = getUser()
+    if (!currentUser) {
+      router.push("/auth/login")
+      return
+    }
+    setUser(currentUser)
+    fetchAttendanceData(currentUser.id)
+    
     const timer = setInterval(() => setCurrentTime(new Date()), 1000)
     return () => clearInterval(timer)
   }, [])
 
-  const fetchTodayAttendance = async () => {
+  useEffect(() => {
+    const currentUser = getUser()
+    if (!currentUser) {
+      router.push("/auth/login")
+      return
+    }
+    setUser(currentUser)
+    fetchAttendanceData(currentUser.id)
+    
+    const timer = setInterval(() => setCurrentTime(new Date()), 1000)
+    return () => clearInterval(timer)
+  }, [])
+
+  const fetchAttendanceData = async (userId: number) => {
     try {
-      const response = await fetch(`${API_BASE_URL}/api/Attendance/today/${employeeId}`)
-      const data = await response.json()
-      setTodayAttendance(data)
+      const response = await fetch(`${API_BASE_URL}/api/EmployeeSelfService/attendance/${userId}`)
+      if (response.ok) {
+        const data = await response.json()
+        setAttendanceData(data)
+        
+        // Find today's record
+        const today = new Date().toISOString().split('T')[0]
+        const todayRec = data.records?.find((r: AttendanceRecord) => 
+          new Date(r.date).toISOString().split('T')[0] === today
+        )
+        setTodayRecord(todayRec || null)
+      }
     } catch (error) {
       console.error("Error fetching attendance:", error)
+    } finally {
+      setLoading(false)
     }
   }
 
   const handleCheckIn = async () => {
-    setLoading(true)
+    if (!user) return
+    
+    setActionLoading(true)
     try {
       const response = await fetch(`${API_BASE_URL}/api/Attendance/check-in`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          employeeId: employeeId,
+          employeeId: user.id,
           location: "Office",
           notes: ""
         })
       })
 
       if (response.ok) {
-        await fetchTodayAttendance()
+        await fetchAttendanceData(user.id)
       } else {
         const error = await response.json()
         alert(error.message || "Failed to check in")
@@ -65,26 +113,26 @@ export default function AttendancePage() {
       console.error("Check-in error:", error)
       alert("Failed to check in")
     } finally {
-      setLoading(false)
+      setActionLoading(false)
     }
   }
 
   const handleCheckOut = async () => {
-    if (!todayAttendance?.attendanceId) return
+    if (!todayRecord?.id || !user) return
 
-    setLoading(true)
+    setActionLoading(true)
     try {
       const response = await fetch(`${API_BASE_URL}/api/Attendance/check-out`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          attendanceId: todayAttendance.attendanceId,
+          attendanceId: todayRecord.id,
           notes: ""
         })
       })
 
       if (response.ok) {
-        await fetchTodayAttendance()
+        await fetchAttendanceData(user.id)
       } else {
         const error = await response.json()
         alert(error.message || "Failed to check out")
@@ -93,7 +141,7 @@ export default function AttendancePage() {
       console.error("Check-out error:", error)
       alert("Failed to check out")
     } finally {
-      setLoading(false)
+      setActionLoading(false)
     }
   }
 
@@ -120,11 +168,62 @@ export default function AttendancePage() {
     }
   }
 
+  if (loading) {
+    return (
+      <div className="flex flex-1 items-center justify-center p-6">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+          <p className="text-muted-foreground">Loading attendance data...</p>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="flex flex-1 flex-col gap-6 p-6">
       <div>
-        <h1 className="text-3xl font-bold tracking-tight">Attendance</h1>
+        <h1 className="text-3xl font-bold tracking-tight">My Attendance</h1>
         <p className="text-muted-foreground">Track your daily attendance</p>
+      </div>
+
+      {/* Summary Stats */}
+      <div className="grid gap-4 md:grid-cols-4">
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium">Attendance Rate</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{attendanceData?.summary?.attendancePercentage || 0}%</div>
+            <p className="text-xs text-muted-foreground">This month</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium">Days Present</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{attendanceData?.summary?.totalPresent || 0}</div>
+            <p className="text-xs text-muted-foreground">This month</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium">Working Hours</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{attendanceData?.summary?.totalWorkingHours?.toFixed(1) || 0}</div>
+            <p className="text-xs text-muted-foreground">This month</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium">Overtime</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{attendanceData?.summary?.totalOvertimeHours?.toFixed(1) || 0}</div>
+            <p className="text-xs text-muted-foreground">This month</p>
+          </CardContent>
+        </Card>
       </div>
 
       <div className="grid gap-6 md:grid-cols-2">
@@ -165,25 +264,25 @@ export default function AttendancePage() {
             <CardDescription>Your attendance for today</CardDescription>
           </CardHeader>
           <CardContent>
-            {todayAttendance?.checkedIn ? (
+            {todayRecord ? (
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
                   <span className="text-sm text-muted-foreground">Status</span>
-                  {getStatusBadge(todayAttendance.status)}
+                  {getStatusBadge(todayRecord.status)}
                 </div>
                 <div className="flex items-center justify-between">
                   <span className="text-sm text-muted-foreground">Check-in</span>
-                  <span className="font-semibold">{formatTime(todayAttendance.checkInTime)}</span>
+                  <span className="font-semibold">{formatTime(todayRecord.checkInTime)}</span>
                 </div>
-                {todayAttendance.checkOutTime && (
+                {todayRecord.checkOutTime && (
                   <>
                     <div className="flex items-center justify-between">
                       <span className="text-sm text-muted-foreground">Check-out</span>
-                      <span className="font-semibold">{formatTime(todayAttendance.checkOutTime)}</span>
+                      <span className="font-semibold">{formatTime(todayRecord.checkOutTime)}</span>
                     </div>
                     <div className="flex items-center justify-between">
                       <span className="text-sm text-muted-foreground">Working Hours</span>
-                      <span className="font-semibold">{todayAttendance.workingHours?.toFixed(2)} hrs</span>
+                      <span className="font-semibold">{todayRecord.workingHours?.toFixed(2)} hrs</span>
                     </div>
                   </>
                 )}
@@ -206,20 +305,20 @@ export default function AttendancePage() {
         </CardHeader>
         <CardContent>
           <div className="flex gap-4">
-            {!todayAttendance?.checkedIn ? (
+            {!todayRecord ? (
               <Button 
                 onClick={handleCheckIn} 
-                disabled={loading}
+                disabled={actionLoading}
                 size="lg"
                 className="flex items-center gap-2"
               >
                 <CheckCircle className="h-5 w-5" />
                 Check In
               </Button>
-            ) : !todayAttendance?.checkOutTime ? (
+            ) : !todayRecord.checkOutTime ? (
               <Button 
                 onClick={handleCheckOut} 
-                disabled={loading}
+                disabled={actionLoading}
                 variant="destructive"
                 size="lg"
                 className="flex items-center gap-2"
@@ -234,6 +333,46 @@ export default function AttendancePage() {
               </div>
             )}
           </div>
+        </CardContent>
+      </Card>
+
+      {/* Attendance History */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Attendance History</CardTitle>
+          <CardDescription>Your attendance records for this month</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Date</TableHead>
+                <TableHead>Check-in</TableHead>
+                <TableHead>Check-out</TableHead>
+                <TableHead>Working Hours</TableHead>
+                <TableHead>Status</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {attendanceData?.records && attendanceData.records.length > 0 ? (
+                attendanceData.records.map((record) => (
+                  <TableRow key={record.id}>
+                    <TableCell>{new Date(record.date).toLocaleDateString()}</TableCell>
+                    <TableCell>{formatTime(record.checkInTime)}</TableCell>
+                    <TableCell>{formatTime(record.checkOutTime)}</TableCell>
+                    <TableCell>{record.workingHours?.toFixed(2) || '--'} hrs</TableCell>
+                    <TableCell>{getStatusBadge(record.status)}</TableCell>
+                  </TableRow>
+                ))
+              ) : (
+                <TableRow>
+                  <TableCell colSpan={5} className="text-center text-muted-foreground">
+                    No attendance records found for this month
+                  </TableCell>
+                </TableRow>
+              )}
+            </TableBody>
+          </Table>
         </CardContent>
       </Card>
     </div>

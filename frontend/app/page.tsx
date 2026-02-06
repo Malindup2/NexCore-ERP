@@ -1,8 +1,14 @@
 "use client"
 
+import { useEffect, useState } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Users, Package, ShoppingCart, DollarSign, TrendingUp, ArrowUpRight, ArrowDownRight } from "lucide-react";
+import { Users, Package, ShoppingCart, DollarSign, TrendingUp, ArrowUpRight, ArrowDownRight, Calendar, Clock, FileText, Award } from "lucide-react";
 import { Bar, BarChart, ResponsiveContainer, XAxis, YAxis, Tooltip, Line, LineChart, Area, AreaChart } from "recharts";
+import { getUser, UserRoles } from "@/lib/auth";
+import { Button } from "@/components/ui/button";
+import Link from "next/link";
+
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5166";
 
 const revenueData = [
   { month: "Jan", revenue: 1485 },
@@ -31,6 +37,252 @@ const recentOrders = [
 ];
 
 export default function Home() {
+  const [user, setUser] = useState<any>(null)
+  const [dashboardData, setDashboardData] = useState<any>(null)
+  const [adminMetrics, setAdminMetrics] = useState<any>(null)
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    const currentUser = getUser()
+    setUser(currentUser)
+    
+    // Fetch dashboard data for employees
+    if (currentUser?.role === UserRoles.Employee) {
+      fetchEmployeeDashboard(currentUser.id)
+    } else {
+      // Fetch admin/manager metrics
+      fetchAdminMetrics()
+    }
+  }, [])
+
+  const fetchEmployeeDashboard = async (userId: number) => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/EmployeeSelfService/dashboard/${userId}`)
+      if (response.ok) {
+        const data = await response.json()
+        setDashboardData(data)
+      }
+    } catch (error) {
+      console.error("Error fetching dashboard:", error)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const fetchAdminMetrics = async () => {
+    try {
+      const [salesRes, inventoryRes, employeesRes, procurementRes, payrollRes] = await Promise.all([
+        fetch(`${API_BASE_URL}/api/sales/orders`),
+        fetch(`${API_BASE_URL}/api/inventory/products`),
+        fetch(`${API_BASE_URL}/api/hr/employees`),
+        fetch(`${API_BASE_URL}/api/procurement/orders`),
+        fetch(`${API_BASE_URL}/api/payroll/summary`)
+      ])
+
+      const sales = salesRes.ok ? await salesRes.json() : []
+      const inventory = inventoryRes.ok ? await inventoryRes.json() : []
+      const employees = employeesRes.ok ? await employeesRes.json() : []
+      const procurement = procurementRes.ok ? await procurementRes.json() : []
+      const payroll = payrollRes.ok ? await payrollRes.json() : null
+
+      // Calculate metrics
+      const totalRevenue = sales.reduce((sum: number, order: any) => sum + order.totalAmount, 0)
+      const pendingPOs = procurement.filter((po: any) => po.status === "Draft" || po.status === "Submitted").length
+      
+      setAdminMetrics({
+        totalRevenue,
+        salesCount: sales.length,
+        inventoryCount: inventory.length,
+        employeeCount: employees.length,
+        pendingPOs,
+        payrollSummary: payroll,
+        recentOrders: sales.slice(0, 4).map((order: any) => ({
+          id: `ORD-${order.id}`,
+          customerId: order.customerId,
+          amount: `LKR ${order.totalAmount.toLocaleString()}`,
+          status: order.status
+        }))
+      })
+    } catch (error) {
+      console.error("Error fetching admin metrics:", error)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  // Employee Dashboard
+  if (user?.role === UserRoles.Employee) {
+    if (loading) {
+      return (
+        <div className="flex flex-1 items-center justify-center p-6">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+            <p className="text-muted-foreground">Loading your dashboard...</p>
+          </div>
+        </div>
+      )
+    }
+
+    return (
+      <div className="flex flex-1 flex-col gap-6 p-6">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight">
+            Welcome, {dashboardData?.profile?.firstName || user?.username}!
+          </h1>
+          <p className="text-muted-foreground">
+            {dashboardData?.profile?.designation || "Employee"} • {dashboardData?.profile?.department || ""}
+          </p>
+        </div>
+
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">My Attendance</CardTitle>
+              <Clock className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{dashboardData?.attendance?.percentage || 0}%</div>
+              <p className="text-xs text-muted-foreground">
+                {dashboardData?.attendance?.daysPresent || 0} days this month
+              </p>
+              <Link href="/hr/attendance">
+                <Button variant="link" className="mt-2 p-0 h-auto">View Details</Button>
+              </Link>
+              {dashboardData?.attendance?.checkedInToday && (
+                <p className="text-xs text-green-600 mt-1">✓ Checked in today</p>
+              )}
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Leave Balance</CardTitle>
+              <Calendar className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{dashboardData?.leaves?.remaining || 0} days</div>
+              <p className="text-xs text-muted-foreground">
+                {dashboardData?.leaves?.used || 0} of {dashboardData?.leaves?.total || 20} used
+              </p>
+              <Link href="/hr/leave">
+                <Button variant="link" className="mt-2 p-0 h-auto">Apply Leave</Button>
+              </Link>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">My Payroll</CardTitle>
+              <DollarSign className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">Available</div>
+              <p className="text-xs text-muted-foreground">View payslips</p>
+              <Link href="/hr/payroll">
+                <Button variant="link" className="mt-2 p-0 h-auto">View Payroll</Button>
+              </Link>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Performance</CardTitle>
+              <Award className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">
+                {dashboardData?.performance?.latestRating ? `${dashboardData.performance.latestRating}/5` : "N/A"}
+              </div>
+              <p className="text-xs text-muted-foreground">{dashboardData?.performance?.status || "Pending"}</p>
+              <Link href="/hr/reviews">
+                <Button variant="link" className="mt-2 p-0 h-auto">View Reviews</Button>
+              </Link>
+            </CardContent>
+          </Card>
+        </div>
+
+        <div className="grid gap-4 md:grid-cols-2">
+          <Card>
+            <CardHeader>
+              <CardTitle>Quick Actions</CardTitle>
+              <CardDescription>Common tasks</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-2">
+              <Link href="/hr/attendance">
+                <Button variant="outline" className="w-full justify-start">
+                  <Clock className="mr-2 h-4 w-4" />
+                  Mark Attendance
+                </Button>
+              </Link>
+              <Link href="/hr/leave">
+                <Button variant="outline" className="w-full justify-start">
+                  <Calendar className="mr-2 h-4 w-4" />
+                  Request Leave
+                </Button>
+              </Link>
+              <Link href="/hr/payroll">
+                <Button variant="outline" className="w-full justify-start">
+                  <FileText className="mr-2 h-4 w-4" />
+                  View Payslips
+                </Button>
+              </Link>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Recent Activity</CardTitle>
+              <CardDescription>Your latest updates</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-3">
+                {dashboardData?.attendance?.checkedInToday ? (
+                  <div className="text-sm">
+                    <p className="font-medium">✓ Checked In</p>
+                    <p className="text-muted-foreground text-xs">
+                      {new Date(dashboardData.attendance.checkInTime).toLocaleTimeString()}
+                    </p>
+                  </div>
+                ) : (
+                  <div className="text-sm">
+                    <p className="font-medium text-orange-600">! Not Checked In</p>
+                    <p className="text-muted-foreground text-xs">Please mark your attendance</p>
+                  </div>
+                )}
+                <div className="text-sm">
+                  <p className="font-medium">Leave Balance</p>
+                  <p className="text-muted-foreground text-xs">
+                    {dashboardData?.leaves?.remaining || 0} days remaining
+                  </p>
+                </div>
+                {dashboardData?.performance?.latestReviewDate && (
+                  <div className="text-sm">
+                    <p className="font-medium">Last Review</p>
+                    <p className="text-muted-foreground text-xs">
+                      {new Date(dashboardData.performance.latestReviewDate).toLocaleDateString()}
+                    </p>
+                  </div>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+    )
+  }
+
+  // Admin/Manager Dashboard - Full business metrics
+  if (loading) {
+    return (
+      <div className="flex flex-1 items-center justify-center p-6">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+          <p className="text-muted-foreground">Loading dashboard...</p>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="flex flex-1 flex-col gap-6 p-6">
       <div className="flex items-center justify-between">
@@ -48,23 +300,23 @@ export default function Home() {
             <DollarSign className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">LKR 14,926,523</div>
-            <p className="text-xs text-muted-foreground flex items-center gap-1 mt-1">
-              <TrendingUp className="h-3 w-3 text-green-500" />
-              <span className="text-green-500">+20.1%</span> from last month
+            <div className="text-2xl font-bold">
+              LKR {adminMetrics?.totalRevenue?.toLocaleString() || "0"}
+            </div>
+            <p className="text-xs text-muted-foreground mt-1">
+              From {adminMetrics?.salesCount || 0} sales orders
             </p>
           </CardContent>
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Sales</CardTitle>
+            <CardTitle className="text-sm font-medium">Sales Orders</CardTitle>
             <ShoppingCart className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">+2,350</div>
-            <p className="text-xs text-muted-foreground flex items-center gap-1 mt-1">
-              <TrendingUp className="h-3 w-3 text-green-500" />
-              <span className="text-green-500">+180.1%</span> from last month
+            <div className="text-2xl font-bold">{adminMetrics?.salesCount || 0}</div>
+            <p className="text-xs text-muted-foreground mt-1">
+              Total orders placed
             </p>
           </CardContent>
         </Card>
@@ -74,10 +326,9 @@ export default function Home() {
             <Package className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">1,234</div>
-            <p className="text-xs text-muted-foreground flex items-center gap-1 mt-1">
-              <TrendingUp className="h-3 w-3 text-green-500" />
-              <span className="text-green-500">+5%</span> from last month
+            <div className="text-2xl font-bold">{adminMetrics?.inventoryCount || 0}</div>
+            <p className="text-xs text-muted-foreground mt-1">
+              Products in stock
             </p>
           </CardContent>
         </Card>
@@ -87,35 +338,37 @@ export default function Home() {
             <Users className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">245</div>
-            <p className="text-xs text-muted-foreground flex items-center gap-1 mt-1">
-              <TrendingUp className="h-3 w-3 text-green-500" />
-              <span className="text-green-500">+12</span> from last month
+            <div className="text-2xl font-bold">{adminMetrics?.employeeCount || 0}</div>
+            <p className="text-xs text-muted-foreground mt-1">
+              Total employees
             </p>
           </CardContent>
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Pending POs</CardTitle>
-            <ShoppingCart className="h-4 w-4 text-muted-foreground" />
+            <ShoppingCart className="h-4 w-4 text-orange-500" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">12</div>
-            <p className="text-xs text-muted-foreground flex items-center gap-1 mt-1">
-              <ArrowUpRight className="h-3 w-3 text-red-500" />
-              <span className="text-red-500">+2</span> urgent
+            <div className="text-2xl font-bold text-orange-500">
+              {adminMetrics?.pendingPOs || 0}
+            </div>
+            <p className="text-xs text-muted-foreground mt-1">
+              Awaiting action
             </p>
           </CardContent>
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Next Payroll</CardTitle>
-            <DollarSign className="h-4 w-4 text-muted-foreground" />
+            <CardTitle className="text-sm font-medium">Monthly Payroll</CardTitle>
+            <DollarSign className="h-4 w-4 text-green-500" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">In 5 Days</div>
-            <p className="text-xs text-muted-foreground flex items-center gap-1 mt-1">
-              <span className="text-muted-foreground">Est. LKR 41.25M</span>
+            <div className="text-2xl font-bold text-green-500">
+              LKR {adminMetrics?.payrollSummary?.totalNetSalary?.toLocaleString() || "0"}
+            </div>
+            <p className="text-xs text-muted-foreground mt-1">
+              {adminMetrics?.payrollSummary?.totalEmployees || 0} employees
             </p>
           </CardContent>
         </Card>
@@ -162,24 +415,28 @@ export default function Home() {
         <Card className="col-span-3">
           <CardHeader>
             <CardTitle>Recent Sales</CardTitle>
-            <CardDescription>You made 265 sales this month</CardDescription>
+            <CardDescription>Latest {adminMetrics?.recentOrders?.length || 0} sales orders</CardDescription>
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              {recentOrders.map((order) => (
-                <div key={order.id} className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className="h-9 w-9 rounded-full bg-muted flex items-center justify-center text-sm font-medium">
-                      {order.customer.split(" ").map(n => n[0]).join("")}
+              {adminMetrics?.recentOrders && adminMetrics.recentOrders.length > 0 ? (
+                adminMetrics.recentOrders.map((order: any) => (
+                  <div key={order.id} className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="h-9 w-9 rounded-full bg-muted flex items-center justify-center text-sm font-medium">
+                        {order.id.slice(0, 2)}
+                      </div>
+                      <div>
+                        <p className="text-sm font-medium">{order.id}</p>
+                        <p className="text-xs text-muted-foreground">Customer #{order.customerId}</p>
+                      </div>
                     </div>
-                    <div>
-                      <p className="text-sm font-medium">{order.customer}</p>
-                      <p className="text-xs text-muted-foreground">{order.id}</p>
-                    </div>
+                    <div className="text-sm font-medium">{order.amount}</div>
                   </div>
-                  <div className="text-sm font-medium">{order.amount}</div>
-                </div>
-              ))}
+                ))
+              ) : (
+                <p className="text-sm text-muted-foreground">No recent orders</p>
+              )}
             </div>
           </CardContent>
         </Card>

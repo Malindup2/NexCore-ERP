@@ -28,7 +28,7 @@ namespace HRService.Consumers
 
         protected override async Task ExecuteAsync(CancellationToken stoppingToken)
         {
-            await Task.Delay(5000, stoppingToken);  to be ready
+            await Task.Delay(5000, stoppingToken); 
 
             try
             {

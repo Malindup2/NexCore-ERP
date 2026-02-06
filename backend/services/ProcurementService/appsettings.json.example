@@ -1,0 +1,17 @@
+{
+    "ConnectionStrings": {
+        "DefaultConnection": "Host=localhost;Port=5432;Database=procurement_db;Username=postgres;Password=YOUR_DB_PASSWORD"
+    },
+    "JwtSettings": {
+        "Secret": "YOUR_JWT_SECRET_MIN_32_CHARACTERS_LONG",
+        "Issuer": "NexCoreAuth",
+        "Audience": "NexCoreClient"
+    },
+    "Logging": {
+        "LogLevel": {
+            "Default": "Information",
+            "Microsoft": "Warning"
+        }
+    },
+    "AllowedHosts": "*"
+}

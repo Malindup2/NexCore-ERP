@@ -1,6 +1,7 @@
 using HRService.Data;
 using HRService.DTOs;
 using HRService.Models;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
@@ -8,6 +9,7 @@ namespace HRService.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
+    [Authorize(Roles = "Admin,HRManager")]
     public class LeaveController : ControllerBase
     {
         private readonly HrDbContext _context;
@@ -359,13 +361,25 @@ namespace HRService.Controllers
 
         // GET: api/Leave/requests
         [HttpGet("requests")]
-        public async Task<IActionResult> GetAllLeaveRequests()
+        public async Task<IActionResult> GetAllLeaveRequests([FromQuery] string? status)
         {
             try
             {
-                var leaveRequests = await _context.LeaveRequests
+                var query = _context.LeaveRequests
                     .Include(lr => lr.Employee)
                     .Include(lr => lr.LeaveType)
+                    .AsQueryable();
+
+                // Filter by status if provided
+                if (!string.IsNullOrEmpty(status))
+                {
+                    if (Enum.TryParse<LeaveRequestStatus>(status, true, out var statusEnum))
+                    {
+                        query = query.Where(lr => lr.Status == statusEnum);
+                    }
+                }
+
+                var leaveRequests = await query
                     .OrderByDescending(lr => lr.CreatedAt)
                     .Select(lr => new LeaveRequestDto
                     {

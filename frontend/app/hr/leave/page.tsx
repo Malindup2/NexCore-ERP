@@ -11,45 +11,46 @@ import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
 import { Plus, Calendar, CheckCircle, XCircle, Clock } from "lucide-react"
+import { getUser } from "@/lib/auth"
+import { useRouter } from "next/navigation"
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5003"
-
-interface LeaveType {
-  id: number
-  name: string
-  description: string
-  defaultDaysPerYear: number
-  isPaid: boolean
-  requiresApproval: boolean
-}
-
-interface LeaveBalance {
-  id: number
-  leaveTypeId: number
-  leaveTypeName: string
-  year: number
-  totalDays: number
-  usedDays: number
-  remainingDays: number
-}
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5166"
 
 interface LeaveRequest {
   id: number
-  leaveTypeId: number
-  leaveTypeName: string
+  leaveType: string
   startDate: string
   endDate: string
   numberOfDays: number
   reason: string
   status: string
-  createdAt: string
+  approvedBy?: string
+  approvedDate?: string
   approvalNotes?: string
 }
 
+interface LeaveBalance {
+  total: number
+  used: number
+  remaining: number
+}
+
+interface LeaveType {
+  id: number
+  name: string
+  description?: string
+  defaultDaysPerYear: number
+  isPaid: boolean
+}
+
 export default function LeavePage() {
-  const [leaveTypes, setLeaveTypes] = useState<LeaveType[]>([])
-  const [leaveBalances, setLeaveBalances] = useState<LeaveBalance[]>([])
+  const router = useRouter()
+  const [user, setUser] = useState<any>(null)
   const [leaveRequests, setLeaveRequests] = useState<LeaveRequest[]>([])
+  const [leaveBalance, setLeaveBalance] = useState<LeaveBalance | null>(null)
+  const [leaveTypes, setLeaveTypes] = useState<LeaveType[]>([])
+  const [loading, setLoading] = useState(true)
+  const [submitting, setSubmitting] = useState(false)
   const [isDialogOpen, setIsDialogOpen] = useState(false)
   const [newRequest, setNewRequest] = useState({
     leaveTypeId: "",
@@ -58,71 +59,88 @@ export default function LeavePage() {
     reason: ""
   })
 
-  // Mock employee ID - in real app, get from auth context
-  const employeeId = 1
-
   useEffect(() => {
+    const currentUser = getUser()
+    if (!currentUser) {
+      router.push("/auth/login")
+      return
+    }
+    setUser(currentUser)
+    fetchLeaveData(currentUser.id)
     fetchLeaveTypes()
-    fetchLeaveBalances()
-    fetchLeaveRequests()
   }, [])
+
+  const fetchLeaveData = async (userId: number) => {
+    try {
+      console.log("Fetching leave data for userId:", userId)
+      console.log("URL:", `${API_BASE_URL}/api/EmployeeSelfService/leaves/${userId}`)
+      
+      const response = await fetch(`${API_BASE_URL}/api/EmployeeSelfService/leaves/${userId}`)
+      console.log("Response status:", response.status)
+      
+      if (response.ok) {
+        const data = await response.json()
+        console.log("Leave data received:", data)
+        setLeaveRequests(data.requests || [])
+        setLeaveBalance(data.balance || null)
+      } else {
+        const errorText = await response.text()
+        console.error("Error response:", errorText)
+      }
+    } catch (error) {
+      console.error("Error fetching leave data:", error)
+    } finally {
+      setLoading(false)
+    }
+  }
 
   const fetchLeaveTypes = async () => {
     try {
-      const response = await fetch(`${API_BASE_URL}/api/Leave/types`)
-      const data = await response.json()
-      setLeaveTypes(data)
+      const response = await fetch(`${API_BASE_URL}/api/EmployeeSelfService/leave-types`)
+      if (response.ok) {
+        const data = await response.json()
+        setLeaveTypes(data)
+      }
     } catch (error) {
       console.error("Error fetching leave types:", error)
     }
   }
 
-  const fetchLeaveBalances = async () => {
-    try {
-      const response = await fetch(`${API_BASE_URL}/api/Leave/balance/${employeeId}`)
-      const data = await response.json()
-      setLeaveBalances(data)
-    } catch (error) {
-      console.error("Error fetching leave balances:", error)
-    }
-  }
-
-  const fetchLeaveRequests = async () => {
-    try {
-      const response = await fetch(`${API_BASE_URL}/api/Leave/requests/employee/${employeeId}`)
-      const data = await response.json()
-      setLeaveRequests(data)
-    } catch (error) {
-      console.error("Error fetching leave requests:", error)
-    }
-  }
-
   const handleSubmitRequest = async () => {
+    if (!user || !newRequest.leaveTypeId || !newRequest.startDate || !newRequest.endDate || !newRequest.reason) {
+      alert("Please fill in all fields")
+      return
+    }
+
+    setSubmitting(true)
     try {
-      const response = await fetch(`${API_BASE_URL}/api/Leave/request`, {
+      const response = await fetch(`${API_BASE_URL}/api/EmployeeSelfService/leaves/${user.id}`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+        },
         body: JSON.stringify({
-          employeeId,
           leaveTypeId: parseInt(newRequest.leaveTypeId),
           startDate: newRequest.startDate,
           endDate: newRequest.endDate,
-          reason: newRequest.reason
-        })
+          reason: newRequest.reason,
+        }),
       })
 
       if (response.ok) {
+        alert("Leave request submitted successfully!")
         setIsDialogOpen(false)
         setNewRequest({ leaveTypeId: "", startDate: "", endDate: "", reason: "" })
-        fetchLeaveRequests()
-        fetchLeaveBalances()
+        fetchLeaveData(user.id) // Refresh the list
       } else {
         const error = await response.json()
-        alert(error.message || "Failed to submit leave request")
+        alert(`Error: ${error.message || "Failed to submit leave request"}`)
       }
     } catch (error) {
       console.error("Error submitting leave request:", error)
       alert("Failed to submit leave request")
+    } finally {
+      setSubmitting(false)
     }
   }
 
@@ -139,12 +157,23 @@ export default function LeavePage() {
     }
   }
 
+  if (loading) {
+    return (
+      <div className="flex flex-1 items-center justify-center p-6">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+          <p className="text-muted-foreground">Loading leave data...</p>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="flex flex-1 flex-col gap-6 p-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Leave Management</h1>
-          <p className="text-muted-foreground">Manage your leave requests and balances</p>
+          <h1 className="text-3xl font-bold tracking-tight">My Leave</h1>
+          <p className="text-muted-foreground">Manage your leave requests and balance</p>
         </div>
         <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
           <DialogTrigger asChild>
@@ -155,18 +184,18 @@ export default function LeavePage() {
           </DialogTrigger>
           <DialogContent>
             <DialogHeader>
-              <DialogTitle>New Leave Request</DialogTitle>
-              <DialogDescription>Submit a leave request for approval</DialogDescription>
+              <DialogTitle>Request Leave</DialogTitle>
+              <DialogDescription>Submit a new leave request</DialogDescription>
             </DialogHeader>
             <div className="grid gap-4 py-4">
-              <div className="space-y-2">
+              <div className="grid gap-2">
                 <Label htmlFor="leaveType">Leave Type</Label>
-                <Select value={newRequest.leaveTypeId} onValueChange={(value) => setNewRequest({...newRequest, leaveTypeId: value})}>
+                <Select value={newRequest.leaveTypeId} onValueChange={(value) => setNewRequest({ ...newRequest, leaveTypeId: value })}>
                   <SelectTrigger>
                     <SelectValue placeholder="Select leave type" />
                   </SelectTrigger>
                   <SelectContent>
-                    {leaveTypes.map(type => (
+                    {leaveTypes.map((type) => (
                       <SelectItem key={type.id} value={type.id.toString()}>
                         {type.name} ({type.isPaid ? "Paid" : "Unpaid"})
                       </SelectItem>
@@ -174,87 +203,82 @@ export default function LeavePage() {
                   </SelectContent>
                 </Select>
               </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="startDate">Start Date</Label>
-                  <Input 
-                    id="startDate" 
-                    type="date" 
-                    value={newRequest.startDate}
-                    onChange={(e) => setNewRequest({...newRequest, startDate: e.target.value})}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="endDate">End Date</Label>
-                  <Input 
-                    id="endDate" 
-                    type="date" 
-                    value={newRequest.endDate}
-                    onChange={(e) => setNewRequest({...newRequest, endDate: e.target.value})}
-                  />
-                </div>
+              <div className="grid gap-2">
+                <Label htmlFor="startDate">Start Date</Label>
+                <Input
+                  id="startDate"
+                  type="date"
+                  value={newRequest.startDate}
+                  onChange={(e) => setNewRequest({ ...newRequest, startDate: e.target.value })}
+                />
               </div>
-              <div className="space-y-2">
+              <div className="grid gap-2">
+                <Label htmlFor="endDate">End Date</Label>
+                <Input
+                  id="endDate"
+                  type="date"
+                  value={newRequest.endDate}
+                  onChange={(e) => setNewRequest({ ...newRequest, endDate: e.target.value })}
+                />
+              </div>
+              <div className="grid gap-2">
                 <Label htmlFor="reason">Reason</Label>
-                <Textarea 
-                  id="reason" 
-                  placeholder="Enter reason for leave..."
+                <Textarea
+                  id="reason"
+                  placeholder="Reason for leave"
                   value={newRequest.reason}
-                  onChange={(e) => setNewRequest({...newRequest, reason: e.target.value})}
-                  rows={4}
+                  onChange={(e) => setNewRequest({ ...newRequest, reason: e.target.value })}
                 />
               </div>
             </div>
             <DialogFooter>
-              <Button variant="outline" onClick={() => setIsDialogOpen(false)}>Cancel</Button>
-              <Button onClick={handleSubmitRequest}>Submit Request</Button>
+              <Button type="button" variant="secondary" onClick={() => setIsDialogOpen(false)}>
+                Cancel
+              </Button>
+              <Button type="button" onClick={handleSubmitRequest} disabled={submitting}>
+                {submitting ? "Submitting..." : "Submit Request"}
+              </Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
       </div>
 
-      {/* Leave Balance Cards */}
-      <div>
-        <h2 className="text-xl font-semibold mb-4">Leave Balance</h2>
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-          {leaveBalances.map(balance => (
-            <Card key={balance.id}>
-              <CardHeader className="pb-3">
-                <CardTitle className="text-base">{balance.leaveTypeName}</CardTitle>
-                <CardDescription>Year {balance.year}</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-2">
-                  <div className="flex justify-between text-sm">
-                    <span className="text-muted-foreground">Total</span>
-                    <span className="font-medium">{balance.totalDays} days</span>
-                  </div>
-                  <div className="flex justify-between text-sm">
-                    <span className="text-muted-foreground">Used</span>
-                    <span className="font-medium">{balance.usedDays} days</span>
-                  </div>
-                  <div className="flex justify-between text-sm">
-                    <span className="text-muted-foreground">Remaining</span>
-                    <span className="font-semibold text-primary">{balance.remainingDays} days</span>
-                  </div>
-                  <div className="w-full bg-secondary rounded-full h-2 mt-2">
-                    <div 
-                      className="bg-primary h-2 rounded-full transition-all" 
-                      style={{ width: `${(balance.usedDays / balance.totalDays) * 100}%` }}
-                    />
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
+      {/* Leave Balance */}
+      <div className="grid gap-4 md:grid-cols-3">
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium">Total Leave</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{leaveBalance?.total || 0} days</div>
+            <p className="text-xs text-muted-foreground">Annual entitlement</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium">Used Leave</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{leaveBalance?.used || 0} days</div>
+            <p className="text-xs text-muted-foreground">This year</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium">Remaining Leave</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{leaveBalance?.remaining || 0} days</div>
+            <p className="text-xs text-muted-foreground">Available</p>
+          </CardContent>
+        </Card>
       </div>
 
       {/* Leave Requests Table */}
       <Card>
         <CardHeader>
           <CardTitle>My Leave Requests</CardTitle>
-          <CardDescription>View your submitted leave requests</CardDescription>
+          <CardDescription>Your leave request history</CardDescription>
         </CardHeader>
         <CardContent>
           <Table>
@@ -266,28 +290,26 @@ export default function LeavePage() {
                 <TableHead>Days</TableHead>
                 <TableHead>Reason</TableHead>
                 <TableHead>Status</TableHead>
-                <TableHead>Submitted</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {leaveRequests.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={7} className="text-center text-muted-foreground">
-                    No leave requests yet
-                  </TableCell>
-                </TableRow>
-              ) : (
-                leaveRequests.map(request => (
+              {leaveRequests.length > 0 ? (
+                leaveRequests.map((request) => (
                   <TableRow key={request.id}>
-                    <TableCell className="font-medium">{request.leaveTypeName}</TableCell>
+                    <TableCell className="font-medium">{request.leaveType}</TableCell>
                     <TableCell>{new Date(request.startDate).toLocaleDateString()}</TableCell>
                     <TableCell>{new Date(request.endDate).toLocaleDateString()}</TableCell>
                     <TableCell>{request.numberOfDays}</TableCell>
                     <TableCell className="max-w-xs truncate">{request.reason}</TableCell>
                     <TableCell>{getStatusBadge(request.status)}</TableCell>
-                    <TableCell>{new Date(request.createdAt).toLocaleDateString()}</TableCell>
                   </TableRow>
                 ))
+              ) : (
+                <TableRow>
+                  <TableCell colSpan={6} className="text-center text-muted-foreground">
+                    No leave requests found
+                  </TableCell>
+                </TableRow>
               )}
             </TableBody>
           </Table>

@@ -6,71 +6,60 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
 import { Star, TrendingUp, TrendingDown, Minus } from "lucide-react"
+import { getUser } from "@/lib/auth"
+import { useRouter } from "next/navigation"
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5003"
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5166"
 
 interface PerformanceReview {
   id: number
-  reviewerId: number
-  period: string
   reviewDate: string
   periodStartDate: string
   periodEndDate: string
-  status: string
-  qualityOfWorkRating?: number
-  productivityRating?: number
-  communicationRating?: number
-  teamworkRating?: number
-  initiativeRating?: number
-  attendanceRating?: number
   overallRating?: number
   strengths?: string
   areasForImprovement?: string
   goals?: string
-  managerComments?: string
-  employeeComments?: string
+  reviewerId?: number
+  status: string
 }
 
-interface PerformanceSummary {
-  employeeId: number
-  employeeName: string
+interface ReviewSummary {
   totalReviews: number
-  averageOverallRating: number
-  latestOverallRating: number
+  averageRating: number
+  latestRating: number
   latestReviewDate?: string
-  performanceTrend: string
 }
 
 export default function PerformanceReviewPage() {
+  const router = useRouter()
+  const [user, setUser] = useState<any>(null)
   const [reviews, setReviews] = useState<PerformanceReview[]>([])
-  const [summary, setSummary] = useState<PerformanceSummary | null>(null)
-  const [selectedReview, setSelectedReview] = useState<PerformanceReview | null>(null)
-
-  
-  const employeeId = 1
+  const [summary, setSummary] = useState<ReviewSummary | null>(null)
+  const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    fetchReviews()
-    fetchSummary()
+    const currentUser = getUser()
+    if (!currentUser) {
+      router.push("/auth/login")
+      return
+    }
+    setUser(currentUser)
+    fetchReviewData(currentUser.id)
   }, [])
 
-  const fetchReviews = async () => {
+  const fetchReviewData = async (userId: number) => {
     try {
-      const response = await fetch(`${API_BASE_URL}/api/PerformanceReview/employee/${employeeId}`)
-      const data = await response.json()
-      setReviews(data)
+      const response = await fetch(`${API_BASE_URL}/api/EmployeeSelfService/reviews/${userId}`)
+      if (response.ok) {
+        const data = await response.json()
+        setReviews(data.reviews || [])
+        setSummary(data.summary || null)
+      }
     } catch (error) {
-      console.error("Error fetching reviews:", error)
-    }
-  }
-
-  const fetchSummary = async () => {
-    try {
-      const response = await fetch(`${API_BASE_URL}/api/PerformanceReview/summary/${employeeId}`)
-      const data = await response.json()
-      setSummary(data)
-    } catch (error) {
-      console.error("Error fetching summary:", error)
+      console.error("Error fetching review data:", error)
+    } finally {
+      setLoading(false)
     }
   }
 
@@ -104,171 +93,98 @@ export default function PerformanceReviewPage() {
     }
   }
 
-  const getTrendIcon = (trend: string) => {
-    switch (trend) {
-      case "Improving":
-        return <TrendingUp className="h-5 w-5 text-green-500" />
-      case "Declining":
-        return <TrendingDown className="h-5 w-5 text-red-500" />
-      case "Stable":
-        return <Minus className="h-5 w-5 text-blue-500" />
-      default:
-        return null
-    }
+  if (loading) {
+    return (
+      <div className="flex flex-1 items-center justify-center p-6">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+          <p className="text-muted-foreground">Loading review data...</p>
+        </div>
+      </div>
+    )
   }
 
   return (
     <div className="flex flex-1 flex-col gap-6 p-6">
       <div>
-        <h1 className="text-3xl font-bold tracking-tight">Performance Reviews</h1>
-        <p className="text-muted-foreground">View your performance reviews and progress</p>
+        <h1 className="text-3xl font-bold tracking-tight">My Reviews</h1>
+        <p className="text-muted-foreground">View your performance reviews</p>
       </div>
 
       {/* Summary Cards */}
-      {summary && (
-        <div className="grid gap-4 md:grid-cols-4">
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-medium text-muted-foreground">Total Reviews</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-3xl font-bold">{summary.totalReviews}</div>
-            </CardContent>
-          </Card>
+      <div className="grid gap-4 md:grid-cols-3">
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium">Total Reviews</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{summary?.totalReviews || 0}</div>
+            <p className="text-xs text-muted-foreground">All time</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium">Average Rating</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{summary?.averageRating?.toFixed(1) || "N/A"}</div>
+            <p className="text-xs text-muted-foreground">Out of 5</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium">Latest Rating</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{summary?.latestRating || "N/A"}/5</div>
+            <p className="text-xs text-muted-foreground">
+              {summary?.latestReviewDate ? new Date(summary.latestReviewDate).toLocaleDateString() : "No reviews yet"}
+            </p>
+          </CardContent>
+        </Card>
+      </div>
 
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-medium text-muted-foreground">Average Rating</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="flex items-center gap-2">
-                <div className="text-3xl font-bold">{summary.averageOverallRating.toFixed(1)}</div>
-                <Star className="h-6 w-6 fill-yellow-400 text-yellow-400" />
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-medium text-muted-foreground">Latest Rating</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="flex items-center gap-2">
-                <div className="text-3xl font-bold">{summary.latestOverallRating.toFixed(1)}</div>
-                <Star className="h-6 w-6 fill-yellow-400 text-yellow-400" />
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-medium text-muted-foreground">Performance Trend</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="flex items-center gap-2">
-                {getTrendIcon(summary.performanceTrend)}
-                <span className="text-lg font-semibold">{summary.performanceTrend}</span>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-      )}
-
-      {/* Reviews List */}
+      {/* Reviews Table */}
       <Card>
         <CardHeader>
           <CardTitle>Review History</CardTitle>
-          <CardDescription>Your performance reviews over time</CardDescription>
+          <CardDescription>Your performance review history</CardDescription>
         </CardHeader>
         <CardContent>
-          {reviews.length === 0 ? (
-            <div className="text-center py-8 text-muted-foreground">
-              No performance reviews yet
-            </div>
-          ) : (
-            <div className="space-y-4">
-              {reviews.map((review) => (
-                <Card key={review.id} className="cursor-pointer hover:bg-accent/50 transition-colors" onClick={() => setSelectedReview(review)}>
-                  <CardContent className="pt-6">
-                    <div className="flex items-start justify-between mb-4">
-                      <div>
-                        <h3 className="font-semibold text-lg">{review.period} Review</h3>
-                        <p className="text-sm text-muted-foreground">
-                          {new Date(review.periodStartDate).toLocaleDateString()} - {new Date(review.periodEndDate).toLocaleDateString()}
-                        </p>
-                      </div>
-                      <div className="flex flex-col items-end gap-2">
-                        {getStatusBadge(review.status)}
-                        {review.overallRating && (
-                          <div className="flex items-center gap-1">
-                            <Star className="h-5 w-5 fill-yellow-400 text-yellow-400" />
-                            <span className="text-xl font-bold">{review.overallRating.toFixed(1)}</span>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-
-                    {review.status === "Published" && review.overallRating && (
-                      <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mt-4 pt-4 border-t">
-                        <div>
-                          <p className="text-xs text-muted-foreground mb-1">Quality of Work</p>
-                          {renderStars(review.qualityOfWorkRating)}
-                        </div>
-                        <div>
-                          <p className="text-xs text-muted-foreground mb-1">Productivity</p>
-                          {renderStars(review.productivityRating)}
-                        </div>
-                        <div>
-                          <p className="text-xs text-muted-foreground mb-1">Communication</p>
-                          {renderStars(review.communicationRating)}
-                        </div>
-                        <div>
-                          <p className="text-xs text-muted-foreground mb-1">Teamwork</p>
-                          {renderStars(review.teamworkRating)}
-                        </div>
-                        <div>
-                          <p className="text-xs text-muted-foreground mb-1">Initiative</p>
-                          {renderStars(review.initiativeRating)}
-                        </div>
-                        <div>
-                          <p className="text-xs text-muted-foreground mb-1">Attendance</p>
-                          {renderStars(review.attendanceRating)}
-                        </div>
-                      </div>
-                    )}
-
-                    {review.strengths && (
-                      <div className="mt-4 pt-4 border-t">
-                        <p className="text-sm font-medium mb-1">Strengths:</p>
-                        <p className="text-sm text-muted-foreground">{review.strengths}</p>
-                      </div>
-                    )}
-
-                    {review.areasForImprovement && (
-                      <div className="mt-3">
-                        <p className="text-sm font-medium mb-1">Areas for Improvement:</p>
-                        <p className="text-sm text-muted-foreground">{review.areasForImprovement}</p>
-                      </div>
-                    )}
-
-                    {review.goals && (
-                      <div className="mt-3">
-                        <p className="text-sm font-medium mb-1">Goals:</p>
-                        <p className="text-sm text-muted-foreground">{review.goals}</p>
-                      </div>
-                    )}
-
-                    {review.managerComments && (
-                      <div className="mt-3">
-                        <p className="text-sm font-medium mb-1">Manager Comments:</p>
-                        <p className="text-sm text-muted-foreground">{review.managerComments}</p>
-                      </div>
-                    )}
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          )}
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Review Date</TableHead>
+                <TableHead>Period</TableHead>
+                <TableHead>Overall Rating</TableHead>
+                <TableHead>Strengths</TableHead>
+                <TableHead>Areas for Improvement</TableHead>
+                <TableHead>Status</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {reviews.length > 0 ? (
+                reviews.map((review) => (
+                  <TableRow key={review.id}>
+                    <TableCell>{new Date(review.reviewDate).toLocaleDateString()}</TableCell>
+                    <TableCell>
+                      {new Date(review.periodStartDate).toLocaleDateString()} - {new Date(review.periodEndDate).toLocaleDateString()}
+                    </TableCell>
+                    <TableCell>{renderStars(review.overallRating)}</TableCell>
+                    <TableCell className="max-w-xs truncate">{review.strengths || "N/A"}</TableCell>
+                    <TableCell className="max-w-xs truncate">{review.areasForImprovement || "N/A"}</TableCell>
+                    <TableCell>{getStatusBadge(review.status)}</TableCell>
+                  </TableRow>
+                ))
+              ) : (
+                <TableRow>
+                  <TableCell colSpan={6} className="text-center text-muted-foreground">
+                    No performance reviews found
+                  </TableCell>
+                </TableRow>
+              )}
+            </TableBody>
+          </Table>
         </CardContent>
       </Card>
     </div>

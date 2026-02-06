@@ -10,6 +10,8 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Plus, Search, Mail, Phone, Filter } from "lucide-react"
+import { ProtectedRoute } from "@/components/protected-route"
+import { UserRoles } from "@/lib/auth"
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5166"
 
@@ -107,12 +109,13 @@ export default function EmployeesPage() {
   }
 
   return (
-    <div className="flex flex-1 flex-col gap-6 p-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">Employees</h1>
-          <p className="text-muted-foreground">Manage your workforce</p>
-        </div>
+    <ProtectedRoute requiredRoles={[UserRoles.Admin, UserRoles.HRManager]}>
+      <div className="flex flex-1 flex-col gap-6 p-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-bold tracking-tight">Employees</h1>
+            <p className="text-muted-foreground">Manage your workforce</p>
+          </div>
         <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
           <DialogTrigger asChild>
             <Button>
@@ -272,5 +275,6 @@ export default function EmployeesPage() {
         </CardContent>
       </Card>
     </div>
+    </ProtectedRoute>
   )
 }

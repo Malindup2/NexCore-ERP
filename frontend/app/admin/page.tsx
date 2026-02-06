@@ -9,12 +9,52 @@ import { UserRoles, getUser } from "@/lib/auth"
 import { Users, UserCog, Shield, TrendingUp } from "lucide-react"
 import Link from "next/link"
 
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5166"
+
+interface AdminMetrics {
+  totalUsers: number
+  totalEmployees: number
+  totalAdmins: number
+}
+
 export default function AdminDashboard() {
   const [user, setUser] = useState<any>(null)
+  const [metrics, setMetrics] = useState<AdminMetrics | null>(null)
 
   useEffect(() => {
     setUser(getUser())
+    fetchMetrics()
   }, [])
+
+  const fetchMetrics = async () => {
+    try {
+      const token = localStorage.getItem("token")
+      
+      const [usersRes, employeesRes] = await Promise.all([
+        fetch(`${API_BASE_URL}/api/auth/users`, {
+          headers: { "Authorization": `Bearer ${token}` }
+        }),
+        fetch(`${API_BASE_URL}/api/hr/employees`, {
+          headers: { "Authorization": `Bearer ${token}` }
+        })
+      ])
+
+      if (usersRes.ok && employeesRes.ok) {
+        const users = await usersRes.json()
+        const employees = await employeesRes.json()
+
+        const adminCount = users.filter((u: any) => u.role === "Admin").length
+
+        setMetrics({
+          totalUsers: users.length,
+          totalEmployees: employees.length,
+          totalAdmins: adminCount
+        })
+      }
+    } catch (err) {
+      console.error("Failed to fetch admin metrics:", err)
+    }
+  }
 
   return (
     <ProtectedRoute requiredRoles={[UserRoles.Admin]}>
@@ -33,7 +73,7 @@ export default function AdminDashboard() {
               <Users className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">-</div>
+              <div className="text-2xl font-bold">{metrics?.totalUsers || 0}</div>
               <p className="text-xs text-muted-foreground">All system users</p>
             </CardContent>
           </Card>
@@ -44,7 +84,7 @@ export default function AdminDashboard() {
               <UserCog className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">-</div>
+              <div className="text-2xl font-bold">{metrics?.totalEmployees || 0}</div>
               <p className="text-xs text-muted-foreground">Active employees</p>
             </CardContent>
           </Card>
@@ -55,7 +95,7 @@ export default function AdminDashboard() {
               <Shield className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">-</div>
+              <div className="text-2xl font-bold">{metrics?.totalAdmins || 0}</div>
               <p className="text-xs text-muted-foreground">System administrators</p>
             </CardContent>
           </Card>
