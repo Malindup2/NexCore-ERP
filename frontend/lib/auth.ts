@@ -40,9 +40,13 @@ export const getToken = (): string | null => {
 // Set authentication data
 export const setAuthData = (token: string, user: User): void => {
   if (typeof window === "undefined") return;
-  
+
   localStorage.setItem("token", token);
   localStorage.setItem("user", JSON.stringify(user));
+
+  // Backwards-compat for older pages that read loose keys
+  localStorage.setItem("userRole", user.role);
+  localStorage.setItem("userId", user.id.toString());
 };
 
 // Clear authentication data

@@ -42,7 +42,7 @@ export default function PayrollRunsPage() {
 
   useEffect(() => {
     const userRole = localStorage.getItem("userRole")
-    if (userRole !== "Admin" && userRole !== "HRManager") {
+    if (userRole !== "Admin" && userRole !== "Accountant" && userRole !== "HRManager") {
       router.push("/")
       return
     }
@@ -51,7 +51,11 @@ export default function PayrollRunsPage() {
 
   const fetchPayrollRuns = async () => {
     try {
-      const response = await fetch(`${API_BASE_URL}/api/payroll/payroll-runs`)
+      const token = localStorage.getItem("token")
+      const response = await fetch(`${API_BASE_URL}/api/payroll/payroll-runs`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+      })
+      if (!response.ok) throw new Error("Failed to load payroll runs")
       const data = await response.json()
       setRuns(data)
     } catch (error) {
@@ -67,9 +71,13 @@ export default function PayrollRunsPage() {
     setProcessing(true)
 
     try {
+      const token = localStorage.getItem("token")
       const response = await fetch(`${API_BASE_URL}/api/payroll/process-payroll`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
         body: JSON.stringify(formData)
       })
 

@@ -38,7 +38,7 @@ export default function SalaryRecordsPage() {
 
   useEffect(() => {
     const userRole = localStorage.getItem("userRole")
-    if (userRole !== "Admin" && userRole !== "HRManager") {
+    if (userRole !== "Admin" && userRole !== "Accountant" && userRole !== "HRManager") {
       router.push("/")
       return
     }
@@ -47,7 +47,12 @@ export default function SalaryRecordsPage() {
 
   const fetchSalaries = async () => {
     try {
-      const response = await fetch(`${API_BASE_URL}/api/payroll/salaries`)
+      const token = localStorage.getItem("token")
+      const response = await fetch(`${API_BASE_URL}/api/payroll/salaries`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+      })
+
+      if (!response.ok) throw new Error("Failed to load salaries")
       const data = await response.json()
       setSalaries(data)
     } catch (error) {
@@ -72,9 +77,13 @@ export default function SalaryRecordsPage() {
     if (!editingSalary) return
 
     try {
+      const token = localStorage.getItem("token")
       const response = await fetch(`${API_BASE_URL}/api/payroll/salaries/${editingSalary.employeeId}`, {
         method: "PUT",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
         body: JSON.stringify(formData)
       })
 

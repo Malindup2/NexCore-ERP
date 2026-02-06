@@ -68,7 +68,8 @@ export default function LeaveApprovalsPage() {
 
   useEffect(() => {
     const userRole = localStorage.getItem("userRole");
-    if (userRole !== "Admin" && userRole !== "Manager") {
+    // Backend requires Admin or HRManager
+    if (userRole !== "Admin" && userRole !== "HRManager") {
       router.push("/");
       return;
     }
@@ -84,7 +85,7 @@ export default function LeaveApprovalsPage() {
       const token = localStorage.getItem("token");
       const response = await fetch(`${API_BASE_URL}/api/hr/Leave/requests`, {
         headers: {
-          "Authorization": `Bearer ${token}`
+          "Authorization": token ? `Bearer ${token}` : ""
         }
       });
       
