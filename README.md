@@ -401,9 +401,4 @@ For issues, questions, or contributions:
 - Inspired by modern ERP solutions
 
 ---
-<img width="1895" height="849" alt="Screenshot 2025-12-10 155207" src="https://github.com/user-attachments/assets/d6819cba-69f7-4f5e-ba07-9a188ee3fcc2" />
-<img width="1895" height="825" alt="Screenshot 2025-12-10 154936" src="https://github.com/user-attachments/assets/76eac340-d9eb-4e30-986f-70b71ae14d7d" />
-<img width="1890" height="835" alt="Screenshot 2025-12-10 154916" src="https://github.com/user-attachments/assets/264a30c3-1ea5-439d-a426-9bb2c4b57132" />
-<img width="1904" height="831" alt="Screenshot 2025-12-10 154906" src="https://github.com/user-attachments/assets/d9b5debf-7860-45ef-96aa-fbda5d917ef8" />
-
 **NexCore ERP** - Enterprise Resource Planning for Modern Businesses
