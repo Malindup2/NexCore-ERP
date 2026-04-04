@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Eye, EyeOff, Lock, CheckCircle2, AlertCircle } from "lucide-react"
+import { apiUrl } from "@/lib/api"
 
 function ResetPasswordForm() {
   const router = useRouter()
@@ -53,7 +54,7 @@ function ResetPasswordForm() {
     setLoading(true)
 
     try {
-      const response = await fetch("http://localhost:5001/api/auth/reset-password", {
+      const response = await fetch(apiUrl("/api/auth/reset-password"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ token, newPassword }),

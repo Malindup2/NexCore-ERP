@@ -9,8 +9,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Label } from "@/components/ui/label"
 import { Plus, Search, Building2, Mail, Phone, Edit, Trash2 } from "lucide-react"
 import { useRouter } from "next/navigation"
-
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5166"
+import { apiJson, ApiError } from "@/lib/api"
 
 interface Supplier {
   id: number
@@ -45,12 +44,11 @@ export default function SuppliersPage() {
 
   const fetchSuppliers = async () => {
     try {
-      const response = await fetch(`${API_BASE_URL}/api/procurement/suppliers`)
-      const data = await response.json()
+      const data = await apiJson<Supplier[]>("/api/procurement/suppliers")
       setSuppliers(data)
-      setLoading(false)
     } catch (error) {
       console.error("Error fetching suppliers:", error)
+    } finally {
       setLoading(false)
     }
   }
@@ -58,23 +56,21 @@ export default function SuppliersPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     try {
-      const url = editingSupplier 
-        ? `${API_BASE_URL}/api/procurement/suppliers/${editingSupplier.id}`
-        : `${API_BASE_URL}/api/procurement/suppliers`
-      
-      const response = await fetch(url, {
+      const path = editingSupplier
+        ? `/api/procurement/suppliers/${editingSupplier.id}`
+        : "/api/procurement/suppliers"
+      await apiJson(path, {
         method: editingSupplier ? "PUT" : "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(formData)
+        body: JSON.stringify(formData),
       })
-
-      if (response.ok) {
-        setIsDialogOpen(false)
-        resetForm()
-        fetchSuppliers()
-      }
+      setIsDialogOpen(false)
+      resetForm()
+      fetchSuppliers()
     } catch (error) {
       console.error("Error saving supplier:", error)
+      if (error instanceof ApiError) {
+        alert(error.message)
+      }
     }
   }
 
@@ -93,16 +89,11 @@ export default function SuppliersPage() {
     if (!confirm("Are you sure you want to delete this supplier? This will fail if they have existing orders.")) return
     
     try {
-      const response = await fetch(`${API_BASE_URL}/api/procurement/suppliers/${id}`, {
-        method: "DELETE"
-      })
-      if (response.ok) {
-        fetchSuppliers()
-      } else {
-        alert("Cannot delete supplier with existing orders")
-      }
+      await apiJson(`/api/procurement/suppliers/${id}`, { method: "DELETE" })
+      fetchSuppliers()
     } catch (error) {
       console.error("Error deleting supplier:", error)
+      alert("Cannot delete supplier with existing orders")
     }
   }
 

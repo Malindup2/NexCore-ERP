@@ -13,8 +13,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { Plus, Calendar, CheckCircle, XCircle, Clock } from "lucide-react"
 import { getUser } from "@/lib/auth"
 import { useRouter } from "next/navigation"
-
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5166"
+import { apiJson, ApiError } from "@/lib/api"
 
 interface LeaveRequest {
   id: number
@@ -72,21 +71,11 @@ export default function LeavePage() {
 
   const fetchLeaveData = async (userId: number) => {
     try {
-      console.log("Fetching leave data for userId:", userId)
-      console.log("URL:", `${API_BASE_URL}/api/EmployeeSelfService/leaves/${userId}`)
-      
-      const response = await fetch(`${API_BASE_URL}/api/EmployeeSelfService/leaves/${userId}`)
-      console.log("Response status:", response.status)
-      
-      if (response.ok) {
-        const data = await response.json()
-        console.log("Leave data received:", data)
-        setLeaveRequests(data.requests || [])
-        setLeaveBalance(data.balance || null)
-      } else {
-        const errorText = await response.text()
-        console.error("Error response:", errorText)
-      }
+      const data = await apiJson<{ requests?: LeaveRequest[]; balance?: LeaveBalance }>(
+        `/api/EmployeeSelfService/leaves/${userId}`
+      )
+      setLeaveRequests(data.requests ?? [])
+      setLeaveBalance(data.balance ?? null)
     } catch (error) {
       console.error("Error fetching leave data:", error)
     } finally {
@@ -96,11 +85,8 @@ export default function LeavePage() {
 
   const fetchLeaveTypes = async () => {
     try {
-      const response = await fetch(`${API_BASE_URL}/api/EmployeeSelfService/leave-types`)
-      if (response.ok) {
-        const data = await response.json()
-        setLeaveTypes(data)
-      }
+      const data = await apiJson<LeaveType[]>("/api/EmployeeSelfService/leave-types")
+      setLeaveTypes(data)
     } catch (error) {
       console.error("Error fetching leave types:", error)
     }
@@ -114,11 +100,8 @@ export default function LeavePage() {
 
     setSubmitting(true)
     try {
-      const response = await fetch(`${API_BASE_URL}/api/EmployeeSelfService/leaves/${user.id}`, {
+      await apiJson(`/api/EmployeeSelfService/leaves/${user.id}`, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
         body: JSON.stringify({
           leaveTypeId: parseInt(newRequest.leaveTypeId),
           startDate: newRequest.startDate,
@@ -126,19 +109,22 @@ export default function LeavePage() {
           reason: newRequest.reason,
         }),
       })
-
-      if (response.ok) {
-        alert("Leave request submitted successfully!")
-        setIsDialogOpen(false)
-        setNewRequest({ leaveTypeId: "", startDate: "", endDate: "", reason: "" })
-        fetchLeaveData(user.id) // Refresh the list
-      } else {
-        const error = await response.json()
-        alert(`Error: ${error.message || "Failed to submit leave request"}`)
-      }
+      alert("Leave request submitted successfully!")
+      setIsDialogOpen(false)
+      setNewRequest({ leaveTypeId: "", startDate: "", endDate: "", reason: "" })
+      fetchLeaveData(user.id)
     } catch (error) {
       console.error("Error submitting leave request:", error)
-      alert("Failed to submit leave request")
+      if (error instanceof ApiError) {
+        try {
+          const body = JSON.parse(error.message) as { message?: string }
+          alert(`Error: ${body.message || "Failed to submit leave request"}`)
+        } catch {
+          alert(`Error: ${error.message || "Failed to submit leave request"}`)
+        }
+      } else {
+        alert("Failed to submit leave request")
+      }
     } finally {
       setSubmitting(false)
     }

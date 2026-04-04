@@ -8,8 +8,7 @@ import { ProtectedRoute } from "@/components/protected-route"
 import { UserRoles, getUser } from "@/lib/auth"
 import { Users, UserCog, Shield, TrendingUp } from "lucide-react"
 import Link from "next/link"
-
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5166"
+import { apiJson } from "@/lib/api"
 
 interface AdminMetrics {
   totalUsers: number
@@ -28,29 +27,16 @@ export default function AdminDashboard() {
 
   const fetchMetrics = async () => {
     try {
-      const token = localStorage.getItem("token")
-      
-      const [usersRes, employeesRes] = await Promise.all([
-        fetch(`${API_BASE_URL}/api/auth/users`, {
-          headers: { "Authorization": `Bearer ${token}` }
-        }),
-        fetch(`${API_BASE_URL}/api/hr/employees`, {
-          headers: { "Authorization": `Bearer ${token}` }
-        })
+      const [users, employees] = await Promise.all([
+        apiJson<Array<{ role: string }>>("/api/auth/users"),
+        apiJson<unknown[]>("/api/hr/employees"),
       ])
-
-      if (usersRes.ok && employeesRes.ok) {
-        const users = await usersRes.json()
-        const employees = await employeesRes.json()
-
-        const adminCount = users.filter((u: any) => u.role === "Admin").length
-
-        setMetrics({
-          totalUsers: users.length,
-          totalEmployees: employees.length,
-          totalAdmins: adminCount
-        })
-      }
+      const adminCount = users.filter((u) => u.role === "Admin").length
+      setMetrics({
+        totalUsers: users.length,
+        totalEmployees: employees.length,
+        totalAdmins: adminCount,
+      })
     } catch (err) {
       console.error("Failed to fetch admin metrics:", err)
     }

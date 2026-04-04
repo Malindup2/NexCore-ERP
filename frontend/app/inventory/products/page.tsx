@@ -10,8 +10,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Label } from "@/components/ui/label"
 import { Plus, Search, Package as PackageIcon, AlertTriangle, Edit, Trash2 } from "lucide-react"
 import { useRouter } from "next/navigation"
-
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5166"
+import { apiJson, ApiError } from "@/lib/api"
 
 interface Product {
   id: number
@@ -52,12 +51,11 @@ export default function ProductsPage() {
 
   const fetchProducts = async () => {
     try {
-      const response = await fetch(`${API_BASE_URL}/api/inventory/products`)
-      const data = await response.json()
+      const data = await apiJson<Product[]>("/api/inventory/products")
       setProducts(data)
-      setLoading(false)
     } catch (error) {
       console.error("Error fetching products:", error)
+    } finally {
       setLoading(false)
     }
   }
@@ -65,23 +63,21 @@ export default function ProductsPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     try {
-      const url = editingProduct 
-        ? `${API_BASE_URL}/api/inventory/products/${editingProduct.id}`
-        : `${API_BASE_URL}/api/inventory/products`
-      
-      const response = await fetch(url, {
+      const path = editingProduct
+        ? `/api/inventory/products/${editingProduct.id}`
+        : "/api/inventory/products"
+      await apiJson(path, {
         method: editingProduct ? "PUT" : "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(formData)
+        body: JSON.stringify(formData),
       })
-
-      if (response.ok) {
-        setIsDialogOpen(false)
-        resetForm()
-        fetchProducts()
-      }
+      setIsDialogOpen(false)
+      resetForm()
+      fetchProducts()
     } catch (error) {
       console.error("Error saving product:", error)
+      if (error instanceof ApiError) {
+        alert(error.message)
+      }
     }
   }
 
@@ -103,12 +99,8 @@ export default function ProductsPage() {
     if (!confirm("Are you sure you want to delete this product?")) return
     
     try {
-      const response = await fetch(`${API_BASE_URL}/api/inventory/products/${id}`, {
-        method: "DELETE"
-      })
-      if (response.ok) {
-        fetchProducts()
-      }
+      await apiJson(`/api/inventory/products/${id}`, { method: "DELETE" })
+      fetchProducts()
     } catch (error) {
       console.error("Error deleting product:", error)
     }

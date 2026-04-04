@@ -11,8 +11,7 @@ import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Plus, Search, ShoppingCart, Package, DollarSign, TrendingUp } from "lucide-react"
 import { useRouter } from "next/navigation"
-
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5166"
+import { apiJson, ApiError } from "@/lib/api"
 
 interface Customer {
   id: number
@@ -71,21 +70,17 @@ export default function OrdersPage() {
 
   const fetchData = async () => {
     try {
-      const [ordersRes, customersRes, productsRes] = await Promise.all([
-        fetch(`${API_BASE_URL}/api/sales/orders`),
-        fetch(`${API_BASE_URL}/api/sales/customers`),
-        fetch(`${API_BASE_URL}/api/inventory/products`)
+      const [ordersData, customersData, productsData] = await Promise.all([
+        apiJson<SalesOrder[]>("/api/sales/orders"),
+        apiJson<Customer[]>("/api/sales/customers"),
+        apiJson<Product[]>("/api/inventory/products"),
       ])
-      const ordersData = await ordersRes.json()
-      const customersData = await customersRes.json()
-      const productsData = await productsRes.json()
-      
       setOrders(ordersData)
       setCustomers(customersData)
       setProducts(productsData)
-      setLoading(false)
     } catch (error) {
       console.error("Error fetching data:", error)
+    } finally {
       setLoading(false)
     }
   }
@@ -95,38 +90,33 @@ export default function OrdersPage() {
     try {
       const totalAmount = orderItems.reduce((sum, item) => sum + (item.quantity * item.unitPrice), 0)
       
-      const response = await fetch(`${API_BASE_URL}/api/sales/orders`, {
+      await apiJson("/api/sales/orders", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           ...formData,
           totalAmount,
           status: "Pending",
-          items: orderItems
-        })
+          items: orderItems,
+        }),
       })
-
-      if (response.ok) {
-        setIsDialogOpen(false)
-        resetForm()
-        fetchData()
-      }
+      setIsDialogOpen(false)
+      resetForm()
+      fetchData()
     } catch (error) {
       console.error("Error creating order:", error)
+      if (error instanceof ApiError) {
+        alert(error.message)
+      }
     }
   }
 
   const handleUpdateStatus = async (orderId: number, newStatus: string) => {
     try {
-      const response = await fetch(`${API_BASE_URL}/api/sales/orders/${orderId}/status`, {
+      await apiJson(`/api/sales/orders/${orderId}/status`, {
         method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ status: newStatus })
+        body: JSON.stringify({ status: newStatus }),
       })
-
-      if (response.ok) {
-        fetchData()
-      }
+      fetchData()
     } catch (error) {
       console.error("Error updating status:", error)
     }

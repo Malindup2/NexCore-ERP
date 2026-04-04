@@ -55,6 +55,8 @@ export const clearAuthData = (): void => {
   
   localStorage.removeItem("token");
   localStorage.removeItem("user");
+  localStorage.removeItem("userRole");
+  localStorage.removeItem("userId");
 };
 
 // Check if user is authenticated

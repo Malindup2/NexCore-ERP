@@ -10,8 +10,7 @@ import { Label } from "@/components/ui/label"
 import { Search, DollarSign, Users, TrendingUp, Edit } from "lucide-react"
 import { useRouter } from "next/navigation"
 import { toast } from "sonner"
-
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5166"
+import { apiJson } from "@/lib/api"
 
 interface SalaryRecord {
   id: number
@@ -47,13 +46,7 @@ export default function SalaryRecordsPage() {
 
   const fetchSalaries = async () => {
     try {
-      const token = localStorage.getItem("token")
-      const response = await fetch(`${API_BASE_URL}/api/payroll/salaries`, {
-        headers: token ? { Authorization: `Bearer ${token}` } : undefined,
-      })
-
-      if (!response.ok) throw new Error("Failed to load salaries")
-      const data = await response.json()
+      const data = await apiJson<SalaryRecord[]>("/api/payroll/salaries")
       setSalaries(data)
     } catch (error) {
       console.error("Error fetching salaries:", error)
@@ -77,24 +70,14 @@ export default function SalaryRecordsPage() {
     if (!editingSalary) return
 
     try {
-      const token = localStorage.getItem("token")
-      const response = await fetch(`${API_BASE_URL}/api/payroll/salaries/${editingSalary.employeeId}`, {
+      await apiJson(`/api/payroll/salaries/${editingSalary.employeeId}`, {
         method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        },
-        body: JSON.stringify(formData)
+        body: JSON.stringify(formData),
       })
-
-      if (response.ok) {
-        toast.success("Salary updated successfully")
-        setIsDialogOpen(false)
-        setEditingSalary(null)
-        fetchSalaries()
-      } else {
-        toast.error("Failed to update salary")
-      }
+      toast.success("Salary updated successfully")
+      setIsDialogOpen(false)
+      setEditingSalary(null)
+      fetchSalaries()
     } catch (error) {
       console.error("Error updating salary:", error)
       toast.error("Failed to update salary")

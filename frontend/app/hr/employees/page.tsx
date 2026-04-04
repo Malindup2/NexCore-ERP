@@ -12,8 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Plus, Search, Mail, Phone, Filter } from "lucide-react"
 import { ProtectedRoute } from "@/components/protected-route"
 import { UserRoles } from "@/lib/auth"
-
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5166"
+import { apiJson, ApiError } from "@/lib/api"
 
 interface Employee {
   id: number
@@ -49,11 +48,8 @@ export default function EmployeesPage() {
   const fetchEmployees = async () => {
     setLoading(true)
     try {
-      const response = await fetch(`${API_BASE_URL}/api/hr/employees`)
-      if (response.ok) {
-        const data = await response.json()
-        setEmployees(data)
-      }
+      const data = await apiJson<Employee[]>("/api/hr/employees")
+      setEmployees(data)
     } catch (error) {
       console.error("Error fetching employees:", error)
     } finally {
@@ -63,31 +59,28 @@ export default function EmployeesPage() {
 
   const handleAddEmployee = async () => {
     try {
-      const response = await fetch(`${API_BASE_URL}/api/hr/employees`, {
+      await apiJson("/api/hr/employees", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(newEmployee)
+        body: JSON.stringify(newEmployee),
       })
-
-      if (response.ok) {
-        setIsAddDialogOpen(false)
-        setNewEmployee({
-          firstName: "",
-          lastName: "",
-          email: "",
-          phone: "",
-          department: "",
-          designation: "",
-          isActive: true
-        })
-        fetchEmployees()
-      } else {
-        const error = await response.json()
-        alert(error.message || "Failed to add employee")
-      }
+      setIsAddDialogOpen(false)
+      setNewEmployee({
+        firstName: "",
+        lastName: "",
+        email: "",
+        phone: "",
+        department: "",
+        designation: "",
+        isActive: true,
+      })
+      fetchEmployees()
     } catch (error) {
       console.error("Error adding employee:", error)
-      alert("Failed to add employee")
+      if (error instanceof ApiError) {
+        alert(error.message || "Failed to add employee")
+      } else {
+        alert("Failed to add employee")
+      }
     }
   }
 

@@ -8,8 +8,7 @@ import { Badge } from "@/components/ui/badge"
 import { Star, TrendingUp, TrendingDown, Minus } from "lucide-react"
 import { getUser } from "@/lib/auth"
 import { useRouter } from "next/navigation"
-
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5166"
+import { apiJson } from "@/lib/api"
 
 interface PerformanceReview {
   id: number
@@ -50,12 +49,11 @@ export default function PerformanceReviewPage() {
 
   const fetchReviewData = async (userId: number) => {
     try {
-      const response = await fetch(`${API_BASE_URL}/api/EmployeeSelfService/reviews/${userId}`)
-      if (response.ok) {
-        const data = await response.json()
-        setReviews(data.reviews || [])
-        setSummary(data.summary || null)
-      }
+      const data = await apiJson<{ reviews?: PerformanceReview[]; summary?: ReviewSummary }>(
+        `/api/EmployeeSelfService/reviews/${userId}`
+      )
+      setReviews(data.reviews ?? [])
+      setSummary(data.summary ?? null)
     } catch (error) {
       console.error("Error fetching review data:", error)
     } finally {

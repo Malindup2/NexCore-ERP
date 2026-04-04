@@ -7,8 +7,7 @@ import { DollarSign, Users, TrendingUp, BarChart3 } from "lucide-react"
 import { useRouter } from "next/navigation"
 import { Bar, BarChart, ResponsiveContainer, XAxis, YAxis, Tooltip } from "recharts"
 import { toast } from "sonner"
-
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5166"
+import { apiJson } from "@/lib/api"
 
 interface PayrollSummary {
   totalEmployees: number
@@ -39,13 +38,7 @@ export default function PayrollReportsPage() {
 
   const fetchPayrollSummary = async () => {
     try {
-      const token = localStorage.getItem("token")
-      const response = await fetch(`${API_BASE_URL}/api/payroll/summary`, {
-        headers: token ? { Authorization: `Bearer ${token}` } : undefined,
-      })
-
-      if (!response.ok) throw new Error("Failed to load summary")
-      const data = await response.json()
+      const data = await apiJson<PayrollSummary>("/api/payroll/summary")
       setSummary(data)
     } catch (error) {
       console.error("Error fetching payroll summary:", error)

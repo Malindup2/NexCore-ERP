@@ -11,8 +11,7 @@ import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Plus, Search, ShoppingCart, Package, TrendingDown } from "lucide-react"
 import { useRouter } from "next/navigation"
-
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5166"
+import { apiJson, ApiError } from "@/lib/api"
 
 interface Supplier {
   id: number
@@ -62,21 +61,17 @@ export default function ProcurementOrdersPage() {
 
   const fetchData = async () => {
     try {
-      const [ordersRes, suppliersRes, productsRes] = await Promise.all([
-        fetch(`${API_BASE_URL}/api/procurement/orders`),
-        fetch(`${API_BASE_URL}/api/procurement/suppliers`),
-        fetch(`${API_BASE_URL}/api/inventory/products`)
+      const [ordersData, suppliersData, productsData] = await Promise.all([
+        apiJson<PurchaseOrder[]>("/api/procurement/orders"),
+        apiJson<Supplier[]>("/api/procurement/suppliers"),
+        apiJson<Product[]>("/api/inventory/products"),
       ])
-      const ordersData = await ordersRes.json()
-      const suppliersData = await suppliersRes.json()
-      const productsData = await productsRes.json()
-      
       setOrders(ordersData)
       setSuppliers(suppliersData)
       setProducts(productsData)
-      setLoading(false)
     } catch (error) {
       console.error("Error fetching data:", error)
+    } finally {
       setLoading(false)
     }
   }
@@ -84,38 +79,33 @@ export default function ProcurementOrdersPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     try {
-      const response = await fetch(`${API_BASE_URL}/api/procurement/orders`, {
+      await apiJson("/api/procurement/orders", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           supplierId: formData.supplierId,
           productSku: formData.productSku,
           quantity: formData.quantity,
-          totalAmount: formData.totalAmount
-        })
+          totalAmount: formData.totalAmount,
+        }),
       })
-
-      if (response.ok) {
-        setIsDialogOpen(false)
-        resetForm()
-        fetchData()
-      }
+      setIsDialogOpen(false)
+      resetForm()
+      fetchData()
     } catch (error) {
       console.error("Error creating order:", error)
+      if (error instanceof ApiError) {
+        alert(error.message)
+      }
     }
   }
 
   const handleUpdateStatus = async (orderId: number, newStatus: string) => {
     try {
-      const response = await fetch(`${API_BASE_URL}/api/procurement/orders/${orderId}/status`, {
+      await apiJson(`/api/procurement/orders/${orderId}/status`, {
         method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ status: newStatus })
+        body: JSON.stringify({ status: newStatus }),
       })
-
-      if (response.ok) {
-        fetchData()
-      }
+      fetchData()
     } catch (error) {
       console.error("Error updating status:", error)
     }
@@ -126,16 +116,12 @@ export default function ProcurementOrdersPage() {
     if (!selectedOrderId) return
 
     try {
-      const response = await fetch(`${API_BASE_URL}/api/procurement/orders/${selectedOrderId}/receive`, {
+      await apiJson(`/api/procurement/orders/${selectedOrderId}/receive`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" }
       })
-
-      if (response.ok) {
-        setIsReceiveDialogOpen(false)
-        setSelectedOrderId(null)
-        fetchData()
-      }
+      setIsReceiveDialogOpen(false)
+      setSelectedOrderId(null)
+      fetchData()
     } catch (error) {
       console.error("Error receiving goods:", error)
     }

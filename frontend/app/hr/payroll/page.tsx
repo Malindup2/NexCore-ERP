@@ -9,8 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Calendar, DollarSign, Download, FileText } from "lucide-react"
 import { getUser, UserRoles } from "@/lib/auth"
 import { ProtectedRoute } from "@/components/protected-route"
-
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5166"
+import { apiJson } from "@/lib/api"
 
 interface PayrollRecord {
   id: number
@@ -47,12 +46,11 @@ export default function PayrollPage() {
 
   const fetchPayrollData = async (userId: number) => {
     try {
-      const response = await fetch(`${API_BASE_URL}/api/EmployeeSelfService/payroll/${userId}`)
-      if (response.ok) {
-        const data = await response.json()
-        setPayrollRecords(data.records)
-        setSummary(data.summary)
-      }
+      const data = await apiJson<{ records: PayrollRecord[]; summary: unknown }>(
+        `/api/EmployeeSelfService/payroll/${userId}`
+      )
+      setPayrollRecords(data.records)
+      setSummary(data.summary)
     } catch (error) {
       console.error("Error fetching payroll:", error)
     } finally {
