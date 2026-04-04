@@ -156,9 +156,9 @@ namespace HRService.Consumers
 
                 var body = Encoding.UTF8.GetBytes(JsonSerializer.Serialize(message));
 
-                _channel?.ExchangeDeclare("employee_events", ExchangeType.Fanout, durable: true);
+                _channel?.ExchangeDeclare("employee.events", ExchangeType.Fanout, durable: true);
                 _channel?.BasicPublish(
-                    exchange: "employee_events",
+                    exchange: "employee.events",
                     routingKey: "",
                     basicProperties: null,
                     body: body

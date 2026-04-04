@@ -8,9 +8,10 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Label } from "@/components/ui/label"
 import { Search, DollarSign, Users, TrendingUp, Edit } from "lucide-react"
-import { useRouter } from "next/navigation"
 import { toast } from "sonner"
 import { apiJson } from "@/lib/api"
+import { ProtectedRoute } from "@/components/protected-route"
+import { UserRoles } from "@/lib/auth"
 
 interface SalaryRecord {
   id: number
@@ -24,7 +25,6 @@ interface SalaryRecord {
 }
 
 export default function SalaryRecordsPage() {
-  const router = useRouter()
   const [salaries, setSalaries] = useState<SalaryRecord[]>([])
   const [searchQuery, setSearchQuery] = useState("")
   const [isDialogOpen, setIsDialogOpen] = useState(false)
@@ -36,13 +36,8 @@ export default function SalaryRecordsPage() {
   })
 
   useEffect(() => {
-    const userRole = localStorage.getItem("userRole")
-    if (userRole !== "Admin" && userRole !== "Accountant" && userRole !== "HRManager") {
-      router.push("/")
-      return
-    }
     fetchSalaries()
-  }, [router])
+  }, [])
 
   const fetchSalaries = async () => {
     try {
@@ -103,6 +98,7 @@ export default function SalaryRecordsPage() {
   const avgSalary = salaries.length > 0 ? totalNetSalary / salaries.length : 0
 
   return (
+    <ProtectedRoute requiredRoles={[UserRoles.Admin, UserRoles.Accountant]}>
     <div className="flex flex-1 flex-col gap-6 p-6">
       <div className="flex items-center justify-between">
         <div>
@@ -259,5 +255,6 @@ export default function SalaryRecordsPage() {
         </DialogContent>
       </Dialog>
     </div>
+    </ProtectedRoute>
   )
 }

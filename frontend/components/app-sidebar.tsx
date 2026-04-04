@@ -9,12 +9,9 @@ import {
   Package,
   ShoppingCart,
   Receipt,
-  Command,
   ChevronsUpDown,
   LogOut,
-  Sparkles,
   BadgeCheck,
-  CreditCard,
   Bell,
   DollarSign,
   ChevronRight,
@@ -25,7 +22,7 @@ import {
   Award
 } from "lucide-react"
 import { motion, AnimatePresence } from "framer-motion"
-import { getUser, isAdmin, clearAuthData } from "@/lib/auth"
+import { getUser, clearAuthData } from "@/lib/auth"
 import { useRouter } from "next/navigation"
 import { toast } from "sonner"
 import {
@@ -73,83 +70,6 @@ import {
 } from "@/components/ui/dropdown-menu"
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-
-
-const data = {
-  user: {
-    name: "Admin User",
-    email: "admin@nexcore.com",
-    avatar: "/avatars/shadcn.jpg",
-  },
-  teams: [
-    {
-      name: "NexCore ERP",
-      logo: Command,
-      plan: "Enterprise",
-    },
-  ],
-  navMain: [
-    {
-      title: "Dashboard",
-      url: "/",
-      icon: LayoutDashboard,
-      isActive: true,
-    },
-    {
-      title: "HR Module",
-      url: "/hr",
-      icon: Users,
-      items: [
-        { title: "Employees", url: "/hr/employees" },
-        { title: "Attendance", url: "/hr/attendance" },
-        { title: "Leave Management", url: "/hr/leave" },
-        { title: "Performance Reviews", url: "/hr/reviews" },
-        { title: "Payroll", url: "/hr/payroll" },
-      ],
-    },
-    {
-      title: "Inventory",
-      url: "/inventory",
-      icon: Package,
-      items: [
-        { title: "Products", url: "/inventory/products" },
-      ],
-    },
-    {
-      title: "Sales",
-      url: "/sales",
-      icon: DollarSign,
-      items: [
-        { title: "Customers", url: "/sales/customers" },
-        { title: "Sales Orders", url: "/sales/orders" },
-      ],
-    },
-    {
-      title: "Procurement",
-      url: "/procurement",
-      icon: ShoppingCart,
-      items: [
-        { title: "Suppliers", url: "/procurement/suppliers" },
-        { title: "Purchase Orders", url: "/procurement/orders" },
-      ],
-    },
-    {
-      title: "Accounting",
-      url: "/accounting",
-      icon: Receipt,
-    },
-    {
-      title: "Payroll",
-      url: "/payroll",
-      icon: DollarSign,
-      items: [
-        { title: "Salary Records", url: "/payroll/salary-records" },
-        { title: "Payroll Runs", url: "/payroll/runs" },
-        { title: "Reports", url: "/payroll/reports" },
-      ],
-    },
-  ],
-}
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const pathname = usePathname();
@@ -202,11 +122,9 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         icon: Users,
         items: [
           { title: "Employees", url: "/hr/employees" },
-          { title: "Attendance", url: "/hr/attendance" },
-          { title: "Leave Management", url: "/hr/leave" },
+          { title: "Attendance", url: "/hr/attendance-admin" },
           { title: "Leave Approvals", url: "/hr/leave-approvals" },
-          { title: "Performance Reviews", url: "/hr/reviews" },
-          { title: "Payroll", url: "/hr/payroll" },
+          { title: "Performance Reviews", url: "/hr/reviews-admin" },
         ],
       })
       items.push({
@@ -259,12 +177,18 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         icon: Users,
         items: [
           { title: "Employees", url: "/hr/employees" },
-          { title: "Attendance", url: "/hr/attendance" },
-          { title: "Leave Management", url: "/hr/leave" },
+          { title: "Attendance", url: "/hr/attendance-admin" },
           { title: "Leave Approvals", url: "/hr/leave-approvals" },
-          { title: "Performance Reviews", url: "/hr/reviews" },
-          { title: "Payroll", url: "/hr/payroll" },
+          { title: "Performance Reviews", url: "/hr/reviews-admin" },
         ],
+      })
+    }
+    // Accountant sees accounting and payroll modules
+    else if (role === "Accountant") {
+      items.push({
+        title: "Accounting",
+        url: "/accounting",
+        icon: Receipt,
       })
       items.push({
         title: "Payroll",
@@ -275,14 +199,6 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
           { title: "Payroll Runs", url: "/payroll/runs" },
           { title: "Reports", url: "/payroll/reports" },
         ],
-      })
-    }
-    // Accountant sees only Accounting module
-    else if (role === "Accountant") {
-      items.push({
-        title: "Accounting",
-        url: "/accounting",
-        icon: Receipt,
       })
     }
     // Sales/Procurement sees Sales, Procurement, and Inventory

@@ -11,9 +11,10 @@ import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
 import { Plus, Calendar, CheckCircle, XCircle, Clock } from "lucide-react"
-import { getUser } from "@/lib/auth"
+import { getUser, UserRoles } from "@/lib/auth"
 import { useRouter } from "next/navigation"
 import { apiJson, ApiError } from "@/lib/api"
+import { ProtectedRoute } from "@/components/protected-route"
 
 interface LeaveRequest {
   id: number
@@ -72,7 +73,7 @@ export default function LeavePage() {
   const fetchLeaveData = async (userId: number) => {
     try {
       const data = await apiJson<{ requests?: LeaveRequest[]; balance?: LeaveBalance }>(
-        `/api/EmployeeSelfService/leaves/${userId}`
+        `/api/hr/EmployeeSelfService/leaves/${userId}`
       )
       setLeaveRequests(data.requests ?? [])
       setLeaveBalance(data.balance ?? null)
@@ -85,7 +86,7 @@ export default function LeavePage() {
 
   const fetchLeaveTypes = async () => {
     try {
-      const data = await apiJson<LeaveType[]>("/api/EmployeeSelfService/leave-types")
+      const data = await apiJson<LeaveType[]>("/api/hr/EmployeeSelfService/leave-types")
       setLeaveTypes(data)
     } catch (error) {
       console.error("Error fetching leave types:", error)
@@ -93,20 +94,23 @@ export default function LeavePage() {
   }
 
   const handleSubmitRequest = async () => {
-    if (!user || !newRequest.leaveTypeId || !newRequest.startDate || !newRequest.endDate || !newRequest.reason) {
-      alert("Please fill in all fields")
+    if (!user || !newRequest.leaveTypeId || !newRequest.startDate || !newRequest.endDate) {
+      alert("Please fill in all required fields (Start Date and End Date)")
       return
     }
 
+    const finalReason = newRequest.reason.trim() || "Routine leave";
+
+
     setSubmitting(true)
     try {
-      await apiJson(`/api/EmployeeSelfService/leaves/${user.id}`, {
+      await apiJson(`/api/hr/EmployeeSelfService/leaves/${user.id}`, {
         method: "POST",
         body: JSON.stringify({
           leaveTypeId: parseInt(newRequest.leaveTypeId),
           startDate: newRequest.startDate,
           endDate: newRequest.endDate,
-          reason: newRequest.reason,
+          reason: finalReason,
         }),
       })
       alert("Leave request submitted successfully!")
@@ -155,6 +159,7 @@ export default function LeavePage() {
   }
 
   return (
+    <ProtectedRoute requiredRoles={[UserRoles.Employee]}>
     <div className="flex flex-1 flex-col gap-6 p-6">
       <div className="flex items-center justify-between">
         <div>
@@ -302,5 +307,6 @@ export default function LeavePage() {
         </CardContent>
       </Card>
     </div>
+    </ProtectedRoute>
   )
 }

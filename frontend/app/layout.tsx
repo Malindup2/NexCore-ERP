@@ -35,7 +35,7 @@ export default function RootLayout({
   const isAuthPage = pathname?.startsWith("/auth");
 
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
       <head>
         <link rel="icon" href="/assets/logo.png" type="image/png" />
         <link rel="apple-touch-icon" href="/assets/logo.png" />

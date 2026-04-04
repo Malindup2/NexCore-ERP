@@ -12,6 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Plus, Search, ShoppingCart, Package, TrendingDown } from "lucide-react"
 import { useRouter } from "next/navigation"
 import { apiJson, ApiError } from "@/lib/api"
+import { toast } from "sonner"
 
 interface Supplier {
   id: number
@@ -29,8 +30,11 @@ interface PurchaseOrder {
   supplierId: number
   orderDate: string
   totalAmount: number
-  status: string
+  status: unknown
 }
+
+const normalizeStatus = (status: unknown) => String(status ?? "").toLowerCase()
+const statusLabel = (status: unknown) => String(status ?? "Unknown")
 
 export default function ProcurementOrdersPage() {
   const router = useRouter()
@@ -42,6 +46,9 @@ export default function ProcurementOrdersPage() {
   const [isReceiveDialogOpen, setIsReceiveDialogOpen] = useState(false)
   const [selectedOrderId, setSelectedOrderId] = useState<number | null>(null)
   const [loading, setLoading] = useState(true)
+  const [isSubmittingOrder, setIsSubmittingOrder] = useState(false)
+  const [isReceivingGoods, setIsReceivingGoods] = useState(false)
+  const [statusUpdatingOrderId, setStatusUpdatingOrderId] = useState<number | null>(null)
   const [formData, setFormData] = useState({
     supplierId: 0,
     productSku: "",
@@ -78,8 +85,16 @@ export default function ProcurementOrdersPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    if (isSubmittingOrder) return
+
+    if (formData.supplierId <= 0 || !formData.productSku || formData.quantity <= 0 || formData.totalAmount <= 0) {
+      toast.error("Please fill valid supplier, product, quantity, and amount")
+      return
+    }
+
+    setIsSubmittingOrder(true)
     try {
-      await apiJson("/api/procurement/orders", {
+      const result = await apiJson<{ Message?: string; PO_ID?: number; Status?: string }>("/api/procurement/orders", {
         method: "POST",
         body: JSON.stringify({
           supplierId: formData.supplierId,
@@ -88,42 +103,57 @@ export default function ProcurementOrdersPage() {
           totalAmount: formData.totalAmount,
         }),
       })
+      toast.success(result.Message || "Purchase order created successfully")
       setIsDialogOpen(false)
       resetForm()
-      fetchData()
+      await fetchData()
     } catch (error) {
       console.error("Error creating order:", error)
       if (error instanceof ApiError) {
-        alert(error.message)
+        toast.error(error.message || "Failed to create purchase order")
+      } else {
+        toast.error("Failed to create purchase order")
       }
+    } finally {
+      setIsSubmittingOrder(false)
     }
   }
 
   const handleUpdateStatus = async (orderId: number, newStatus: string) => {
+    setStatusUpdatingOrderId(orderId)
     try {
       await apiJson(`/api/procurement/orders/${orderId}/status`, {
         method: "PUT",
         body: JSON.stringify({ status: newStatus }),
       })
-      fetchData()
+      toast.success(`PO-${orderId} marked as ${newStatus}`)
+      await fetchData()
     } catch (error) {
       console.error("Error updating status:", error)
+      toast.error("Failed to update order status")
+    } finally {
+      setStatusUpdatingOrderId(null)
     }
   }
 
   const handleReceiveGoods = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!selectedOrderId) return
+    if (!selectedOrderId || isReceivingGoods) return
 
+    setIsReceivingGoods(true)
     try {
       await apiJson(`/api/procurement/orders/${selectedOrderId}/receive`, {
         method: "POST",
       })
+      toast.success(`Goods received for PO-${selectedOrderId}`)
       setIsReceiveDialogOpen(false)
       setSelectedOrderId(null)
-      fetchData()
+      await fetchData()
     } catch (error) {
       console.error("Error receiving goods:", error)
+      toast.error("Failed to receive goods")
+    } finally {
+      setIsReceivingGoods(false)
     }
   }
 
@@ -155,13 +185,16 @@ export default function ProcurementOrdersPage() {
   )
 
   const totalSpend = orders.reduce((sum, order) => sum + order.totalAmount, 0)
-  const pendingOrders = orders.filter(o => o.status === "Draft" || o.status === "Submitted").length
+  const pendingOrders = orders.filter((o) => {
+    const s = normalizeStatus(o.status)
+    return s === "draft" || s === "submitted"
+  }).length
 
-  const getStatusBadgeVariant = (status: string) => {
-    switch (status) {
-      case "Received": return "default"
-      case "Submitted": return "secondary"
-      case "Draft": return "outline"
+  const getStatusBadgeVariant = (status: unknown) => {
+    switch (normalizeStatus(status)) {
+      case "received": return "default"
+      case "submitted": return "secondary"
+      case "draft": return "outline"
       default: return "outline"
     }
   }
@@ -252,25 +285,26 @@ export default function ProcurementOrdersPage() {
                   </TableCell>
                   <TableCell>
                     <Badge variant={getStatusBadgeVariant(order.status)}>
-                      {order.status}
+                      {statusLabel(order.status)}
                     </Badge>
                   </TableCell>
                   <TableCell>
                     <div className="flex gap-2">
                       <Select
-                        value={order.status}
+                        value={statusLabel(order.status)}
                         onValueChange={(value) => handleUpdateStatus(order.id, value)}
+                        disabled={statusUpdatingOrderId === order.id}
                       >
-                        <SelectTrigger className="w-[130px]">
+                        <SelectTrigger className="w-[130px] text-foreground bg-background">
                           <SelectValue />
                         </SelectTrigger>
-                        <SelectContent>
+                        <SelectContent className="text-foreground">
                           <SelectItem value="Draft">Draft</SelectItem>
                           <SelectItem value="Submitted">Submitted</SelectItem>
                           <SelectItem value="Received">Received</SelectItem>
                         </SelectContent>
                       </Select>
-                      {order.status === "Submitted" && (
+                      {normalizeStatus(order.status) === "submitted" && (
                         <Button size="sm" onClick={() => openReceiveDialog(order.id)}>
                           Receive Goods
                         </Button>
@@ -299,10 +333,10 @@ export default function ProcurementOrdersPage() {
                     value={formData.supplierId.toString()}
                     onValueChange={(value) => setFormData({ ...formData, supplierId: parseInt(value) })}
                   >
-                    <SelectTrigger>
+                    <SelectTrigger className="text-foreground bg-background">
                       <SelectValue placeholder="Select supplier" />
                     </SelectTrigger>
-                    <SelectContent>
+                    <SelectContent className="text-foreground">
                       {suppliers.map((supplier) => (
                         <SelectItem key={supplier.id} value={supplier.id.toString()}>
                           {supplier.name}
@@ -317,10 +351,10 @@ export default function ProcurementOrdersPage() {
                     value={formData.productSku}
                     onValueChange={(value) => setFormData({ ...formData, productSku: value })}
                   >
-                    <SelectTrigger>
+                    <SelectTrigger className="text-foreground bg-background">
                       <SelectValue placeholder="Select product" />
                     </SelectTrigger>
-                    <SelectContent>
+                    <SelectContent className="text-foreground">
                       {products.map((product) => (
                         <SelectItem key={product.id} value={product.sku}>
                           {product.name} ({product.sku})
@@ -360,7 +394,9 @@ export default function ProcurementOrdersPage() {
               <Button type="button" variant="outline" onClick={() => setIsDialogOpen(false)}>
                 Cancel
               </Button>
-              <Button type="submit">Create Order</Button>
+              <Button type="submit" disabled={isSubmittingOrder}>
+                {isSubmittingOrder ? "Creating..." : "Create Order"}
+              </Button>
             </DialogFooter>
           </form>
         </DialogContent>
@@ -387,7 +423,9 @@ export default function ProcurementOrdersPage() {
               <Button type="button" variant="outline" onClick={() => setIsReceiveDialogOpen(false)}>
                 Cancel
               </Button>
-              <Button type="submit">Confirm Receipt</Button>
+              <Button type="submit" disabled={isReceivingGoods}>
+                {isReceivingGoods ? "Processing..." : "Confirm Receipt"}
+              </Button>
             </DialogFooter>
           </form>
         </DialogContent>

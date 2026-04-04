@@ -3,6 +3,8 @@ using AuthService.Services;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
+using Serilog;
+using Shared.Logging;
 using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -35,7 +37,11 @@ string RequireConfig(string key)
     return value;
 }
 
-//DB context
+// Setup Logging
+builder.Logging.ClearProviders();
+builder.Logging.AddSerilogLogging();
+
+// DB context
 builder.Services.AddDbContext<AuthDbContext>(options =>
     options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
 
@@ -100,8 +106,11 @@ var app = builder.Build();
 // Use CORS
 app.UseCors("AllowFrontend");
 
-app.UseSwagger();
-app.UseSwaggerUI();
+if (app.Environment.IsDevelopment())
+{
+    app.UseSwagger();
+    app.UseSwaggerUI();
+}
 
 // Add Authentication & Authorization middleware
 app.UseAuthentication();
@@ -110,4 +119,3 @@ app.UseAuthorization();
 app.MapControllers();
 
 app.Run();
-

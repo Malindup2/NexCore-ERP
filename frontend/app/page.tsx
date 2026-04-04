@@ -9,32 +9,6 @@ import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import { apiTryJson, apiJson } from "@/lib/api";
 
-const revenueData = [
-  { month: "Jan", revenue: 1485 },
-  { month: "Feb", revenue: 1254 },
-  { month: "Mar", revenue: 1716 },
-  { month: "Apr", revenue: 1518 },
-  { month: "May", revenue: 1914 },
-  { month: "Jun", revenue: 2046 },
-];
-
-const salesData = [
-  { name: "Mon", sales: 120 },
-  { name: "Tue", sales: 150 },
-  { name: "Wed", sales: 180 },
-  { name: "Thu", sales: 140 },
-  { name: "Fri", sales: 200 },
-  { name: "Sat", sales: 170 },
-  { name: "Sun", sales: 130 },
-];
-
-const recentOrders = [
-  { id: "ORD-001", customer: "Nuwan Perera", amount: "LKR 659,670", status: "Completed" },
-  { id: "ORD-002", customer: "Chamari Silva", amount: "LKR 12,870", status: "Processing" },
-  { id: "ORD-003", customer: "Kasun Fernando", amount: "LKR 98,670", status: "Completed" },
-  { id: "ORD-004", customer: "Dilini Rajapakse", amount: "LKR 32,670", status: "Pending" },
-];
-
 export default function Home() {
   const [user, setUser] = useState<any>(null)
   const [dashboardData, setDashboardData] = useState<any>(null)
@@ -57,7 +31,7 @@ export default function Home() {
   const fetchEmployeeDashboard = async (userId: number) => {
     try {
       const data = await apiJson<Record<string, unknown>>(
-        `/api/EmployeeSelfService/dashboard/${userId}`
+        `/api/hr/EmployeeSelfService/dashboard/${userId}`
       )
       setDashboardData(data)
     } catch (error) {
@@ -103,6 +77,48 @@ export default function Home() {
 
       const payrollSummary = payroll ?? null
 
+      const now = new Date()
+      const monthFmt = new Intl.DateTimeFormat("en-US", { month: "short" })
+      const weekdayFmt = new Intl.DateTimeFormat("en-US", { weekday: "short" })
+
+      const monthlyBuckets = Array.from({ length: 6 }, (_, index) => {
+        const d = new Date(now.getFullYear(), now.getMonth() - (5 - index), 1)
+        const key = `${d.getFullYear()}-${d.getMonth()}`
+        return { key, month: monthFmt.format(d), revenue: 0 }
+      })
+      const monthlyIndex = new Map(monthlyBuckets.map((b, i) => [b.key, i]))
+
+      const dayOrder = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]
+      const weeklyBuckets = dayOrder.map((name) => ({ name, sales: 0 }))
+      const weeklyIndex = new Map(dayOrder.map((name, i) => [name, i]))
+
+      for (const order of salesList) {
+        const amount = Number(order.totalAmount ?? order.TotalAmount ?? 0)
+        const rawDate =
+          order.orderDate ??
+          order.OrderDate ??
+          order.createdAt ??
+          order.CreatedAt ??
+          order.createdOn ??
+          order.CreatedOn
+        if (!rawDate) continue
+
+        const parsed = new Date(String(rawDate))
+        if (Number.isNaN(parsed.getTime())) continue
+
+        const monthKey = `${parsed.getFullYear()}-${parsed.getMonth()}`
+        const monthIdx = monthlyIndex.get(monthKey)
+        if (monthIdx !== undefined) {
+          monthlyBuckets[monthIdx].revenue += amount
+        }
+
+        const dayName = weekdayFmt.format(parsed)
+        const dayIdx = weeklyIndex.get(dayName)
+        if (dayIdx !== undefined) {
+          weeklyBuckets[dayIdx].sales += amount
+        }
+      }
+
       setAdminMetrics({
         totalRevenue,
         totalExpenses,
@@ -112,6 +128,8 @@ export default function Home() {
         employeeCount: employeeList.length,
         pendingPOs,
         payrollSummary,
+        revenueSeries: monthlyBuckets,
+        weeklySalesSeries: weeklyBuckets,
         recentOrders: salesList.slice(0, 4).map((order) => ({
           id: `ORD-${order.id}`,
           customerId: order.customerId,
@@ -403,7 +421,7 @@ export default function Home() {
           </CardHeader>
           <CardContent className="pl-2">
             <ResponsiveContainer width="100%" height={300}>
-              <AreaChart data={revenueData}>
+              <AreaChart data={adminMetrics?.revenueSeries || []}>
                 <defs>
                   <linearGradient id="colorRevenue" x1="0" y1="0" x2="0" y2="1">
                     <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.3} />
@@ -470,7 +488,7 @@ export default function Home() {
         </CardHeader>
         <CardContent>
           <ResponsiveContainer width="100%" height={300}>
-            <BarChart data={salesData}>
+            <BarChart data={adminMetrics?.weeklySalesSeries || []}>
               <XAxis dataKey="name" stroke="#888888" fontSize={12} tickLine={false} axisLine={false} />
               <YAxis stroke="#888888" fontSize={12} tickLine={false} axisLine={false} />
               <Tooltip

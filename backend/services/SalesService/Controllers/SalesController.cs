@@ -1,4 +1,4 @@
-﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using SalesService.Data;
@@ -60,13 +60,6 @@ namespace SalesService.Controllers
 
             // Calculate Total
             decimal totalAmount = request.Items.Sum(i => i.Quantity * i.UnitPrice);
-
-            // Validate total amount matches
-            decimal calculatedTotal = request.Items.Sum(i => i.Quantity * i.UnitPrice);
-            if (Math.Abs(totalAmount - calculatedTotal) > 0.01m)
-            {
-                return BadRequest(new { Message = "Order total mismatch" });
-            }
 
             // Create Order Entity
             var order = new SalesOrder

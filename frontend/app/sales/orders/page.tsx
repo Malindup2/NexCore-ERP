@@ -12,6 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Plus, Search, ShoppingCart, Package, DollarSign, TrendingUp } from "lucide-react"
 import { useRouter } from "next/navigation"
 import { apiJson, ApiError } from "@/lib/api"
+import { toast } from "sonner"
 
 interface Customer {
   id: number
@@ -37,12 +38,38 @@ interface SalesOrder {
   customerId: number
   orderDate: string
   totalAmount: number
-  status: string
+  status: unknown
   items: Array<{
     productSku: string
     quantity: number
     unitPrice: number
   }>
+}
+
+const SALES_STATUS_OPTIONS = ["Pending", "Confirmed", "Shipped", "Cancelled"] as const
+
+const normalizeSalesStatus = (status: unknown) => String(status ?? "").toLowerCase()
+
+const toSalesStatusLabel = (status: unknown): string => {
+  if (typeof status === "number") {
+    switch (status) {
+      case 0: return "Pending"
+      case 1: return "Confirmed"
+      case 2: return "Shipped"
+      case 3: return "Cancelled"
+      default: return "Pending"
+    }
+  }
+
+  const normalized = normalizeSalesStatus(status)
+  switch (normalized) {
+    case "pending": return "Pending"
+    case "confirmed": return "Confirmed"
+    case "completed": return "Confirmed"
+    case "shipped": return "Shipped"
+    case "cancelled": return "Cancelled"
+    default: return "Pending"
+  }
 }
 
 export default function OrdersPage() {
@@ -53,6 +80,8 @@ export default function OrdersPage() {
   const [searchQuery, setSearchQuery] = useState("")
   const [isDialogOpen, setIsDialogOpen] = useState(false)
   const [loading, setLoading] = useState(true)
+  const [isSubmittingOrder, setIsSubmittingOrder] = useState(false)
+  const [statusUpdatingOrderId, setStatusUpdatingOrderId] = useState<number | null>(null)
   const [orderItems, setOrderItems] = useState<OrderItem[]>([{ productSku: "", quantity: 1, unitPrice: 0 }])
   const [formData, setFormData] = useState({
     customerId: 0,
@@ -87,10 +116,22 @@ export default function OrdersPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    if (isSubmittingOrder) return
+
+    if (formData.customerId <= 0) {
+      toast.error("Please select a customer")
+      return
+    }
+    if (orderItems.some((item) => !item.productSku || item.quantity <= 0 || item.unitPrice <= 0)) {
+      toast.error("Please complete all order items with valid quantity and price")
+      return
+    }
+
+    setIsSubmittingOrder(true)
     try {
       const totalAmount = orderItems.reduce((sum, item) => sum + (item.quantity * item.unitPrice), 0)
       
-      await apiJson("/api/sales/orders", {
+      const result = await apiJson<{ Message?: string; OrderId?: number; OrderNumber?: string }>("/api/sales/orders", {
         method: "POST",
         body: JSON.stringify({
           ...formData,
@@ -99,26 +140,36 @@ export default function OrdersPage() {
           items: orderItems,
         }),
       })
+      toast.success(result.Message || "Sales order created successfully")
       setIsDialogOpen(false)
       resetForm()
-      fetchData()
+      await fetchData()
     } catch (error) {
       console.error("Error creating order:", error)
       if (error instanceof ApiError) {
-        alert(error.message)
+        toast.error(error.message || "Failed to create sales order")
+      } else {
+        toast.error("Failed to create sales order")
       }
+    } finally {
+      setIsSubmittingOrder(false)
     }
   }
 
   const handleUpdateStatus = async (orderId: number, newStatus: string) => {
+    setStatusUpdatingOrderId(orderId)
     try {
       await apiJson(`/api/sales/orders/${orderId}/status`, {
         method: "PUT",
         body: JSON.stringify({ status: newStatus }),
       })
-      fetchData()
+      toast.success(`Order #${orderId} marked as ${newStatus}`)
+      await fetchData()
     } catch (error) {
       console.error("Error updating status:", error)
+      toast.error("Failed to update order status")
+    } finally {
+      setStatusUpdatingOrderId(null)
     }
   }
 
@@ -165,13 +216,14 @@ export default function OrdersPage() {
   )
 
   const totalRevenue = orders.reduce((sum, order) => sum + order.totalAmount, 0)
-  const pendingOrders = orders.filter(o => o.status === "Pending").length
+  const pendingOrders = orders.filter((o) => normalizeSalesStatus(o.status) === "pending").length
 
-  const getStatusBadgeVariant = (status: string) => {
-    switch (status) {
-      case "Completed": return "default"
-      case "Pending": return "secondary"
-      case "Cancelled": return "destructive"
+  const getStatusBadgeVariant = (status: unknown) => {
+    switch (normalizeSalesStatus(status)) {
+      case "shipped": return "default"
+      case "confirmed": return "secondary"
+      case "pending": return "secondary"
+      case "cancelled": return "destructive"
       default: return "outline"
     }
   }
@@ -273,20 +325,22 @@ export default function OrdersPage() {
                   </TableCell>
                   <TableCell>
                     <Badge variant={getStatusBadgeVariant(order.status)}>
-                      {order.status}
+                      {toSalesStatusLabel(order.status)}
                     </Badge>
                   </TableCell>
                   <TableCell>
                     <Select
-                      value={order.status}
+                      value={toSalesStatusLabel(order.status)}
                       onValueChange={(value) => handleUpdateStatus(order.id, value)}
+                      disabled={statusUpdatingOrderId === order.id}
                     >
-                      <SelectTrigger className="w-[130px]">
+                      <SelectTrigger className="w-[130px] text-foreground bg-background">
                         <SelectValue />
                       </SelectTrigger>
-                      <SelectContent>
+                      <SelectContent className="text-foreground">
                         <SelectItem value="Pending">Pending</SelectItem>
-                        <SelectItem value="Completed">Completed</SelectItem>
+                        <SelectItem value="Confirmed">Confirmed</SelectItem>
+                        <SelectItem value="Shipped">Shipped</SelectItem>
                         <SelectItem value="Cancelled">Cancelled</SelectItem>
                       </SelectContent>
                     </Select>
@@ -313,10 +367,10 @@ export default function OrdersPage() {
                     value={formData.customerId.toString()}
                     onValueChange={(value) => setFormData({ ...formData, customerId: parseInt(value) })}
                   >
-                    <SelectTrigger>
+                    <SelectTrigger className="text-foreground bg-background">
                       <SelectValue placeholder="Select customer" />
                     </SelectTrigger>
-                    <SelectContent>
+                    <SelectContent className="text-foreground">
                       {customers.map((customer) => (
                         <SelectItem key={customer.id} value={customer.id.toString()}>
                           {customer.name}
@@ -346,10 +400,10 @@ export default function OrdersPage() {
                         value={item.productSku}
                         onValueChange={(value) => updateOrderItem(index, "productSku", value)}
                       >
-                        <SelectTrigger>
+                        <SelectTrigger className="text-foreground bg-background">
                           <SelectValue placeholder="Select product" />
                         </SelectTrigger>
-                        <SelectContent>
+                        <SelectContent className="text-foreground">
                           {products.map((product) => (
                             <SelectItem key={product.id} value={product.sku}>
                               {product.name} ({product.sku})
@@ -407,7 +461,9 @@ export default function OrdersPage() {
               <Button type="button" variant="outline" onClick={() => setIsDialogOpen(false)}>
                 Cancel
               </Button>
-              <Button type="submit">Create Order</Button>
+              <Button type="submit" disabled={isSubmittingOrder}>
+                {isSubmittingOrder ? "Creating..." : "Create Order"}
+              </Button>
             </DialogFooter>
           </form>
         </DialogContent>

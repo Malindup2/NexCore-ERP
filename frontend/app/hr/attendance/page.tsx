@@ -6,9 +6,10 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
 import { Clock, CheckCircle, XCircle, Calendar } from "lucide-react"
-import { getUser } from "@/lib/auth"
+import { getUser, UserRoles } from "@/lib/auth"
 import { useRouter } from "next/navigation"
 import { apiJson, ApiError } from "@/lib/api"
+import { ProtectedRoute } from "@/components/protected-route"
 
 interface AttendanceRecord {
   id: number
@@ -56,7 +57,7 @@ export default function AttendancePage() {
   const fetchAttendanceData = async (userId: number) => {
     try {
       const data = await apiJson<AttendanceData>(
-        `/api/EmployeeSelfService/attendance/${userId}`
+        `/api/hr/EmployeeSelfService/attendance/${userId}`
       )
       setAttendanceData(data)
 
@@ -78,7 +79,7 @@ export default function AttendancePage() {
     
     setActionLoading(true)
     try {
-      await apiJson("/api/Attendance/check-in", {
+      await apiJson("/api/hr/Attendance/check-in", {
         method: "POST",
         body: JSON.stringify({
           employeeId: user.id,
@@ -109,7 +110,7 @@ export default function AttendancePage() {
 
     setActionLoading(true)
     try {
-      await apiJson("/api/Attendance/check-out", {
+      await apiJson("/api/hr/Attendance/check-out", {
         method: "POST",
         body: JSON.stringify({
           attendanceId: todayRecord.id,
@@ -169,6 +170,7 @@ export default function AttendancePage() {
   }
 
   return (
+    <ProtectedRoute requiredRoles={[UserRoles.Employee]}>
     <div className="flex flex-1 flex-col gap-6 p-6">
       <div>
         <h1 className="text-3xl font-bold tracking-tight">My Attendance</h1>
@@ -365,5 +367,6 @@ export default function AttendancePage() {
         </CardContent>
       </Card>
     </div>
+    </ProtectedRoute>
   )
 }

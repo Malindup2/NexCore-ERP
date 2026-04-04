@@ -11,6 +11,8 @@ import { useRouter } from "next/navigation"
 import { canManageAccounting } from "@/lib/auth"
 import { apiJson } from "@/lib/api"
 import { toast } from "sonner"
+import { ProtectedRoute } from "@/components/protected-route"
+import { UserRoles } from "@/lib/auth"
 
 interface Account {
   id: number
@@ -136,7 +138,8 @@ export default function AccountingPage() {
   const tbCredits = Number(trialReport?.totalCredits ?? 0)
 
   return (
-    <div className="flex flex-1 flex-col gap-6 p-6">
+      <ProtectedRoute requiredRoles={[UserRoles.Admin, UserRoles.Accountant]}>
+        <div className="flex flex-1 flex-col gap-6 p-6">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Accounting</h1>
@@ -524,6 +527,7 @@ export default function AccountingPage() {
           </Card>
         </TabsContent>
       </Tabs>
-    </div>
+      </div>
+    </ProtectedRoute>
   )
 }

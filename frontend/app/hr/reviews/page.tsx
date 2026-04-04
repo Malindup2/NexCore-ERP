@@ -6,9 +6,10 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
 import { Star, TrendingUp, TrendingDown, Minus } from "lucide-react"
-import { getUser } from "@/lib/auth"
+import { getUser, UserRoles } from "@/lib/auth"
 import { useRouter } from "next/navigation"
 import { apiJson } from "@/lib/api"
+import { ProtectedRoute } from "@/components/protected-route"
 
 interface PerformanceReview {
   id: number
@@ -50,7 +51,7 @@ export default function PerformanceReviewPage() {
   const fetchReviewData = async (userId: number) => {
     try {
       const data = await apiJson<{ reviews?: PerformanceReview[]; summary?: ReviewSummary }>(
-        `/api/EmployeeSelfService/reviews/${userId}`
+        `/api/hr/EmployeeSelfService/reviews/${userId}`
       )
       setReviews(data.reviews ?? [])
       setSummary(data.summary ?? null)
@@ -103,6 +104,7 @@ export default function PerformanceReviewPage() {
   }
 
   return (
+    <ProtectedRoute requiredRoles={[UserRoles.Employee]}>
     <div className="flex flex-1 flex-col gap-6 p-6">
       <div>
         <h1 className="text-3xl font-bold tracking-tight">My Reviews</h1>
@@ -186,5 +188,6 @@ export default function PerformanceReviewPage() {
         </CardContent>
       </Card>
     </div>
+    </ProtectedRoute>
   )
 }

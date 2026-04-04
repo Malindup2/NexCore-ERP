@@ -4,10 +4,11 @@ import { useState, useEffect } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { DollarSign, Users, TrendingUp, BarChart3 } from "lucide-react"
-import { useRouter } from "next/navigation"
 import { Bar, BarChart, ResponsiveContainer, XAxis, YAxis, Tooltip } from "recharts"
 import { toast } from "sonner"
 import { apiJson } from "@/lib/api"
+import { ProtectedRoute } from "@/components/protected-route"
+import { UserRoles } from "@/lib/auth"
 
 interface PayrollSummary {
   totalEmployees: number
@@ -23,18 +24,12 @@ interface PayrollSummary {
 }
 
 export default function PayrollReportsPage() {
-  const router = useRouter()
   const [summary, setSummary] = useState<PayrollSummary | null>(null)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    const userRole = localStorage.getItem("userRole")
-    if (userRole !== "Admin" && userRole !== "Accountant" && userRole !== "HRManager") {
-      router.push("/")
-      return
-    }
     fetchPayrollSummary()
-  }, [router])
+  }, [])
 
   const fetchPayrollSummary = async () => {
     try {
@@ -58,16 +53,19 @@ export default function PayrollReportsPage() {
 
   if (!summary) {
     return (
+      <ProtectedRoute requiredRoles={[UserRoles.Admin, UserRoles.Accountant]}>
       <div className="flex flex-1 flex-col gap-6 p-6">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Payroll Reports</h1>
           <p className="text-muted-foreground">No payroll data available</p>
         </div>
       </div>
+      </ProtectedRoute>
     )
   }
 
   return (
+    <ProtectedRoute requiredRoles={[UserRoles.Admin, UserRoles.Accountant]}>
     <div className="flex flex-1 flex-col gap-6 p-6">
       <div>
         <h1 className="text-3xl font-bold tracking-tight">Payroll Reports</h1>
@@ -250,5 +248,6 @@ export default function PayrollReportsPage() {
         </CardContent>
       </Card>
     </div>
+    </ProtectedRoute>
   )
 }

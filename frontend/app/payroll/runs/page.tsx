@@ -9,9 +9,10 @@ import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Badge } from "@/components/ui/badge"
 import { Plus, Calendar, DollarSign, Users, CheckCircle } from "lucide-react"
-import { useRouter } from "next/navigation"
 import { toast } from "sonner"
 import { apiJson, ApiError } from "@/lib/api"
+import { ProtectedRoute } from "@/components/protected-route"
+import { UserRoles } from "@/lib/auth"
 
 interface PayrollRun {
   id: number
@@ -29,7 +30,6 @@ const MONTHS = [
 ]
 
 export default function PayrollRunsPage() {
-  const router = useRouter()
   const [runs, setRuns] = useState<PayrollRun[]>([])
   const [isDialogOpen, setIsDialogOpen] = useState(false)
   const [loading, setLoading] = useState(true)
@@ -40,13 +40,8 @@ export default function PayrollRunsPage() {
   })
 
   useEffect(() => {
-    const userRole = localStorage.getItem("userRole")
-    if (userRole !== "Admin" && userRole !== "Accountant" && userRole !== "HRManager") {
-      router.push("/")
-      return
-    }
     fetchPayrollRuns()
-  }, [router])
+  }, [])
 
   const fetchPayrollRuns = async () => {
     try {
@@ -108,6 +103,7 @@ export default function PayrollRunsPage() {
   const latestRun = runs[0]
 
   return (
+    <ProtectedRoute requiredRoles={[UserRoles.Admin, UserRoles.Accountant]}>
     <div className="flex flex-1 flex-col gap-6 p-6">
       <div className="flex items-center justify-between">
         <div>
@@ -285,5 +281,6 @@ export default function PayrollRunsPage() {
         </DialogContent>
       </Dialog>
     </div>
+    </ProtectedRoute>
   )
 }

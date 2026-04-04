@@ -195,36 +195,91 @@ cd infra
 docker-compose up -d
 ```
 
+Verify all services are running:
+```bash
+docker-compose ps
+```
+
 This will start:
-- PostgreSQL (port 5432)
-- RabbitMQ (ports 5672, 15672)
-- Redis (port 6379)
-- Seq (port 5341, 8081)
+- **PostgreSQL** (port 5432) - Primary database
+- **RabbitMQ** (AMQP: 5672, Management: 15672) - Message broker
+- **Redis** (port 6379) - Cache layer
+- **Seq** (API: 5341, UI: 8081) - Centralized logging
 
-#### 3. Backend Setup
+**Wait ~10 seconds for services to fully initialize before proceeding.**
 
-Navigate to each service and run migrations:
+#### 3. Backend Setup & Migrations
+
+Run database migrations for each service:
 
 ```bash
+# AuthService (creates auth database)
 cd backend/services/AuthService
 dotnet restore
 dotnet ef database update
+
+# HRService
+cd ../HRService
+dotnet restore
+dotnet ef database update
+
+# PayrollService
+cd ../PayrollService
+dotnet restore
+dotnet ef database update
+
+# InventoryService
+cd ../InventoryService
+dotnet restore
+dotnet ef database update
+
+# SalesService
+cd ../SalesService
+dotnet restore
+dotnet ef database update
+
+# ProcurementService
+cd ../ProcurementService
+dotnet restore
+dotnet ef database update
+
+# AccountingService
+cd ../AccountingService
+dotnet restore
+dotnet ef database update
+```
+
+#### 4. Start All Backend Services
+
+**Option A: Using PowerShell (Recommended for multi-service startup)**
+```powershell
+# Run this from the NexCore-ERP root directory
+$services = @('AuthService', 'HRService', 'PayrollService', 'InventoryService', 'SalesService', 'ProcurementService', 'AccountingService')
+
+foreach ($service in $services) {
+    Start-Process powershell -ArgumentList "-NoExit", "-Command", "cd backend/services/$service; dotnet run"
+}
+
+# Start API Gateway in another terminal
+cd backend/gateway/ApiGateway
 dotnet run
 ```
 
-Repeat for other services:
-- HRService
-- PayrollService
-- InventoryService
-- SalesService
-- ProcurementService
-- AccountingService
+**Option B: Manual Terminal-per-Service**
 
-#### 4. Start API Gateway
+Open separate terminals and run:
 ```bash
-cd backend/gateway/ApiGateway
-dotnet restore
-dotnet run
+# Terminal 1: API Gateway (main entry point)
+cd backend/gateway/ApiGateway && dotnet run
+
+# Terminal 2-8: Each service
+cd backend/services/AuthService && dotnet run
+cd backend/services/HRService && dotnet run
+cd backend/services/PayrollService && dotnet run
+cd backend/services/InventoryService && dotnet run
+cd backend/services/SalesService && dotnet run
+cd backend/services/ProcurementService && dotnet run
+cd backend/services/AccountingService && dotnet run
 ```
 
 #### 5. Frontend Setup
@@ -234,11 +289,25 @@ npm install
 npm run dev
 ```
 
-The application will be available at:
+### Verification Checklist
+
+After starting all services, verify:
+
+- [ ] **Frontend**: http://localhost:3000 (should load without errors)
+- [ ] **API Gateway**: http://localhost:5000/health (should return 200 OK)
+- [ ] **RabbitMQ Management**: http://localhost:15672 (login: guest/guest)
+- [ ] **Seq Logging**: http://localhost:8081 (view aggregated logs)
+- [ ] **Browser Console**: No hydration warnings or errors (F12)
+- [ ] **Login Page**: Try registering a test account and logging in
+
+#### Service Startup Order
+Services can start in any order, but **API Gateway should start after at least 1 backend service** is running.
+
+**Available Endpoints After Full Startup:**
 - Frontend: http://localhost:3000
 - API Gateway: http://localhost:5000
 - RabbitMQ Management: http://localhost:15672 (guest/guest)
-- Seq Logging: http://localhost:8081
+- Seq Logging Dashboard: http://localhost:8081
 
 ### Environment Configuration
 
@@ -324,19 +393,21 @@ All protected endpoints require a JWT token:
 Authorization: Bearer <token>
 ```
 
+
 ## Testing
 
-### Backend
+### Backend Unit Tests
 ```bash
 cd backend/services/[ServiceName]
 dotnet test
 ```
 
-### Frontend
+### Frontend Tests
 ```bash
 cd frontend
 npm run test
 ```
+
 
 ## Monitoring & Logging
 

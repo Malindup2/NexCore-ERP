@@ -1,7 +1,11 @@
 [
   {
-    "Name": "New Profile",
+    "Name": "All Services",
     "Projects": [
+      {
+        "Path": "gateway\\ApiGateway\\ApiGateway.csproj",
+        "Action": "Start"
+      },
       {
         "Path": "services\\AuthService\\AuthService.csproj",
         "Action": "Start"
@@ -11,7 +15,23 @@
         "Action": "Start"
       },
       {
-        "Path": "gateway\\ApiGateway\\ApiGateway.csproj",
+        "Path": "services\\PayrollService\\PayrollService.csproj",
+        "Action": "Start"
+      },
+      {
+        "Path": "services\\InventoryService\\InventoryService.csproj",
+        "Action": "Start"
+      },
+      {
+        "Path": "services\\SalesService\\SalesService.csproj",
+        "Action": "Start"
+      },
+      {
+        "Path": "services\\ProcurementService\\ProcurementService.csproj",
+        "Action": "Start"
+      },
+      {
+        "Path": "services\\AccountingService\\AccountingService.csproj",
         "Action": "Start"
       }
     ]

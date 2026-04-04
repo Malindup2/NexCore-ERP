@@ -27,11 +27,19 @@ namespace HRService.Controllers
         {
             try
             {
+                if (!Enum.TryParse<ReviewPeriod>(request.Period, true, out var reviewPeriod))
+                {
+                    return BadRequest(new
+                    {
+                        message = "Invalid review period. Allowed values: Quarterly, HalfYearly, Annual"
+                    });
+                }
+
                 var review = new PerformanceReview
                 {
                     EmployeeId = request.EmployeeId,
                     ReviewerId = request.ReviewerId,
-                    Period = Enum.Parse<ReviewPeriod>(request.Period),
+                    Period = reviewPeriod,
                     ReviewDate = request.ReviewDate.ToUniversalTime(),
                     PeriodStartDate = request.PeriodStartDate.ToUniversalTime(),
                     PeriodEndDate = request.PeriodEndDate.ToUniversalTime(),

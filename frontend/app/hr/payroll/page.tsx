@@ -47,7 +47,7 @@ export default function PayrollPage() {
   const fetchPayrollData = async (userId: number) => {
     try {
       const data = await apiJson<{ records: PayrollRecord[]; summary: unknown }>(
-        `/api/EmployeeSelfService/payroll/${userId}`
+        `/api/hr/EmployeeSelfService/payroll/${userId}`
       )
       setPayrollRecords(data.records)
       setSummary(data.summary)
@@ -80,6 +80,7 @@ export default function PayrollPage() {
   const uniqueMonths = Array.from(new Set(payrollRecords.map(r => r.monthYear)))
 
   return (
+    <ProtectedRoute requiredRoles={[UserRoles.Employee]}>
     <div className="flex flex-1 flex-col gap-6 p-6">
       <div className="flex items-center justify-between">
         <div>
@@ -187,5 +188,6 @@ export default function PayrollPage() {
         </CardContent>
       </Card>
     </div>
+    </ProtectedRoute>
   )
 }
