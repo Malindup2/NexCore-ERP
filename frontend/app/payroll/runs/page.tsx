@@ -9,10 +9,10 @@ import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Badge } from "@/components/ui/badge"
 import { Plus, Calendar, DollarSign, Users, CheckCircle } from "lucide-react"
-import { useRouter } from "next/navigation"
 import { toast } from "sonner"
-
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5166"
+import { apiJson, ApiError } from "@/lib/api"
+import { ProtectedRoute } from "@/components/protected-route"
+import { UserRoles } from "@/lib/auth"
 
 interface PayrollRun {
   id: number
@@ -30,7 +30,6 @@ const MONTHS = [
 ]
 
 export default function PayrollRunsPage() {
-  const router = useRouter()
   const [runs, setRuns] = useState<PayrollRun[]>([])
   const [isDialogOpen, setIsDialogOpen] = useState(false)
   const [loading, setLoading] = useState(true)
@@ -41,22 +40,12 @@ export default function PayrollRunsPage() {
   })
 
   useEffect(() => {
-    const userRole = localStorage.getItem("userRole")
-    if (userRole !== "Admin" && userRole !== "Accountant" && userRole !== "HRManager") {
-      router.push("/")
-      return
-    }
     fetchPayrollRuns()
-  }, [router])
+  }, [])
 
   const fetchPayrollRuns = async () => {
     try {
-      const token = localStorage.getItem("token")
-      const response = await fetch(`${API_BASE_URL}/api/payroll/payroll-runs`, {
-        headers: token ? { Authorization: `Bearer ${token}` } : undefined,
-      })
-      if (!response.ok) throw new Error("Failed to load payroll runs")
-      const data = await response.json()
+      const data = await apiJson<PayrollRun[]>("/api/payroll/payroll-runs")
       setRuns(data)
     } catch (error) {
       console.error("Error fetching payroll runs:", error)
@@ -71,28 +60,31 @@ export default function PayrollRunsPage() {
     setProcessing(true)
 
     try {
-      const token = localStorage.getItem("token")
-      const response = await fetch(`${API_BASE_URL}/api/payroll/process-payroll`, {
+      const result = await apiJson<{
+        employeeCount?: number
+        totalPayroll?: number
+        message?: string
+      }>("/api/payroll/process-payroll", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        },
-        body: JSON.stringify(formData)
+        body: JSON.stringify(formData),
       })
-
-      if (response.ok) {
-        const result = await response.json()
-        toast.success(`Payroll processed successfully! ${result.employeeCount} employees - Total: LKR ${result.totalPayroll.toLocaleString()}`)
-        setIsDialogOpen(false)
-        fetchPayrollRuns()
-      } else {
-        const error = await response.json()
-        toast.error(error.message || "Failed to process payroll")
-      }
+      toast.success(
+        `Payroll processed successfully! ${result.employeeCount ?? 0} employees - Total: LKR ${(result.totalPayroll ?? 0).toLocaleString()}`
+      )
+      setIsDialogOpen(false)
+      fetchPayrollRuns()
     } catch (error) {
       console.error("Error processing payroll:", error)
-      toast.error("Failed to process payroll")
+      if (error instanceof ApiError) {
+        try {
+          const errBody = JSON.parse(error.message)
+          toast.error(errBody.message || "Failed to process payroll")
+        } catch {
+          toast.error(error.message || "Failed to process payroll")
+        }
+      } else {
+        toast.error("Failed to process payroll")
+      }
     } finally {
       setProcessing(false)
     }
@@ -111,6 +103,7 @@ export default function PayrollRunsPage() {
   const latestRun = runs[0]
 
   return (
+    <ProtectedRoute requiredRoles={[UserRoles.Admin, UserRoles.Accountant]}>
     <div className="flex flex-1 flex-col gap-6 p-6">
       <div className="flex items-center justify-between">
         <div>
@@ -288,5 +281,6 @@ export default function PayrollRunsPage() {
         </DialogContent>
       </Dialog>
     </div>
+    </ProtectedRoute>
   )
 }

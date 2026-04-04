@@ -9,7 +9,7 @@ namespace HRService.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
-    [Authorize]
+    [Authorize(Roles = "Employee")]
     public class EmployeeSelfServiceController : ControllerBase
     {
         private readonly HrDbContext _context;
@@ -415,6 +415,13 @@ namespace HRService.Controllers
                 var payrollServiceUrl = _configuration["PayrollService:Url"] ?? "http://localhost:5004";
                 var httpClient = _httpClientFactory.CreateClient();
                 
+                // Forward the Bearer token to authorize the internal microservice request
+                var authHeader = Request.Headers["Authorization"].FirstOrDefault();
+                if (!string.IsNullOrEmpty(authHeader))
+                {
+                    httpClient.DefaultRequestHeaders.Add("Authorization", authHeader);
+                }
+
                 var response = await httpClient.GetAsync($"{payrollServiceUrl}/api/Payroll/employee/{employee.Id}/history");
 
                 if (!response.IsSuccessStatusCode)

@@ -1,4 +1,4 @@
-﻿using System.Text;
+using System.Text;
 using System.Text.Json;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.DependencyInjection;
@@ -14,78 +14,94 @@ namespace InventoryService.Consumers
 {
     public class GoodsReceivedConsumer : BackgroundService
     {
-        private readonly IConnection _connection;
-        private readonly IModel _channel;
+        private IConnection? _connection;
+        private IModel? _channel;
         private readonly IServiceScopeFactory _scopeFactory;
         private readonly ILogger<GoodsReceivedConsumer> _logger;
-        private readonly string _queueName;
+        private readonly string _queueName = "inventory.goods.received.queue";
 
         public GoodsReceivedConsumer(IServiceScopeFactory scopeFactory, ILogger<GoodsReceivedConsumer> logger)
         {
             _scopeFactory = scopeFactory;
             _logger = logger;
-
-            var factory = new ConnectionFactory
-            {
-                HostName = "localhost",
-                Port = 5672,
-                UserName = "guest",
-                Password = "guest"
-            };
-
-            _connection = factory.CreateConnection();
-            _channel = _connection.CreateModel();
-
-            // Declare Exchange
-            _channel.ExchangeDeclare("procurement.events", ExchangeType.Fanout, durable: true);
-
-            //Create Queue & Bind
-            _queueName = "inventory.goods.received.queue";
-            _channel.QueueDeclare(queue: _queueName, durable: true, exclusive: false, autoDelete: false);
-            _channel.QueueBind(_queueName, "procurement.events", "");
         }
 
-        protected override Task ExecuteAsync(CancellationToken stoppingToken)
+        protected override async Task ExecuteAsync(CancellationToken stoppingToken)
         {
-            var consumer = new EventingBasicConsumer(_channel);
+            await Task.Delay(5000, stoppingToken);
 
-            consumer.Received += async (model, ea) =>
+            while (!stoppingToken.IsCancellationRequested)
             {
-                var body = ea.Body.ToArray();
-                var message = Encoding.UTF8.GetString(body);
-
                 try
                 {
-                    _logger.LogInformation($" [Inventory] Received Goods: {message}");
-
-                    var options = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
-                    var eventData = JsonSerializer.Deserialize<GoodsReceivedEvent>(message, options);
-
-                    if (eventData != null)
+                    var factory = new ConnectionFactory
                     {
-                        await UpdateStock(eventData);
-                        
-                        // Acknowledge successful processing
-                        _channel.BasicAck(ea.DeliveryTag, false);
-                        _logger.LogInformation($"[Inventory] Successfully processed goods received for PO #{eventData.PurchaseOrderId}");
-                    }
-                    else
+                        HostName = "localhost",
+                        Port = 5672,
+                        UserName = "guest",
+                        Password = "guest"
+                    };
+
+                    _connection = factory.CreateConnection();
+                    _channel = _connection.CreateModel();
+
+                    _channel.ExchangeDeclare("procurement.events", ExchangeType.Fanout, durable: true);
+                    _channel.QueueDeclare(queue: _queueName, durable: true, exclusive: false, autoDelete: false);
+                    _channel.QueueBind(_queueName, "procurement.events", "");
+
+                    _logger.LogInformation("[InventoryService] Connected to RabbitMQ. Listening for goods received events...");
+
+                    var consumer = new EventingBasicConsumer(_channel);
+
+                    consumer.Received += async (model, ea) =>
                     {
-                        _logger.LogWarning("Failed to deserialize goods received event");
-                        _channel.BasicNack(ea.DeliveryTag, false, false); // Don't requeue invalid messages
+                        var body = ea.Body.ToArray();
+                        var message = Encoding.UTF8.GetString(body);
+
+                        try
+                        {
+                            _logger.LogInformation($"[InventoryService] Received Goods: {message}");
+
+                            var options = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
+                            var eventData = JsonSerializer.Deserialize<GoodsReceivedEvent>(message, options);
+
+                            if (eventData != null)
+                            {
+                                await UpdateStock(eventData);
+                                _channel.BasicAck(ea.DeliveryTag, false);
+                                _logger.LogInformation($"[InventoryService] Successfully processed goods received for PO #{eventData.PurchaseOrderId}");
+                            }
+                            else
+                            {
+                                _logger.LogWarning("Failed to deserialize goods received event");
+                                _channel.BasicNack(ea.DeliveryTag, false, false);
+                            }
+                        }
+                        catch (Exception ex)
+                        {
+                            _logger.LogError($"[InventoryService] Error processing goods received: {ex.Message}");
+                            _channel.BasicNack(ea.DeliveryTag, false, true);
+                        }
+                    };
+
+                    _channel.BasicConsume(_queueName, autoAck: false, consumer);
+
+                    while (!stoppingToken.IsCancellationRequested && _connection.IsOpen)
+                    {
+                        await Task.Delay(5000, stoppingToken);
                     }
+                }
+                catch (OperationCanceledException)
+                {
+                    break;
                 }
                 catch (Exception ex)
                 {
-                    _logger.LogError($" Error processing goods received: {ex.Message}");
-                    // Reject and requeue for retry
-                    _channel.BasicNack(ea.DeliveryTag, false, true);
+                    _logger.LogWarning($"[InventoryService] RabbitMQ connection failed: {ex.Message}. Retrying in 10 seconds...");
+                    CleanupConnection();
+                    try { await Task.Delay(10000, stoppingToken); } catch (OperationCanceledException) { break; }
                 }
-            };
-
-            // Change autoAck to false for manual acknowledgment
-            _channel.BasicConsume(_queueName, autoAck: false, consumer);
-            return Task.CompletedTask;
+            }
         }
 
         private async Task UpdateStock(GoodsReceivedEvent eventData)
@@ -93,7 +109,6 @@ namespace InventoryService.Consumers
             using (var scope = _scopeFactory.CreateScope())
             {
                 var context = scope.ServiceProvider.GetRequiredService<InventoryDbContext>();
-
 
                 var product = await context.Products.FirstOrDefaultAsync(p => p.SKU == eventData.ProductSku);
 
@@ -105,13 +120,27 @@ namespace InventoryService.Consumers
 
                     await context.SaveChangesAsync();
 
-                    _logger.LogInformation($" [Stock Updated] {product.Name} (SKU: {product.SKU}) | {oldQty} -> {product.Quantity}");
+                    _logger.LogInformation($"[Stock Updated] {product.Name} (SKU: {product.SKU}) | {oldQty} -> {product.Quantity}");
                 }
                 else
                 {
-                    _logger.LogWarning($" Product with SKU '{eventData.ProductSku}' not found. Stock update skipped.");
+                    _logger.LogWarning($"Product with SKU '{eventData.ProductSku}' not found. Stock update skipped.");
                 }
             }
+        }
+
+        private void CleanupConnection()
+        {
+            try { _channel?.Close(); } catch { }
+            try { _connection?.Close(); } catch { }
+            _channel = null;
+            _connection = null;
+        }
+
+        public override void Dispose()
+        {
+            CleanupConnection();
+            base.Dispose();
         }
     }
 }

@@ -2,39 +2,12 @@
 
 import { useEffect, useState } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Users, Package, ShoppingCart, DollarSign, TrendingUp, ArrowUpRight, ArrowDownRight, Calendar, Clock, FileText, Award } from "lucide-react";
+import { Users, Package, ShoppingCart, DollarSign, TrendingUp, TrendingDown, ArrowUpRight, ArrowDownRight, Calendar, Clock, FileText, Award } from "lucide-react";
 import { Bar, BarChart, ResponsiveContainer, XAxis, YAxis, Tooltip, Line, LineChart, Area, AreaChart } from "recharts";
 import { getUser, UserRoles } from "@/lib/auth";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
-
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5166";
-
-const revenueData = [
-  { month: "Jan", revenue: 1485 },
-  { month: "Feb", revenue: 1254 },
-  { month: "Mar", revenue: 1716 },
-  { month: "Apr", revenue: 1518 },
-  { month: "May", revenue: 1914 },
-  { month: "Jun", revenue: 2046 },
-];
-
-const salesData = [
-  { name: "Mon", sales: 120 },
-  { name: "Tue", sales: 150 },
-  { name: "Wed", sales: 180 },
-  { name: "Thu", sales: 140 },
-  { name: "Fri", sales: 200 },
-  { name: "Sat", sales: 170 },
-  { name: "Sun", sales: 130 },
-];
-
-const recentOrders = [
-  { id: "ORD-001", customer: "Nuwan Perera", amount: "LKR 659,670", status: "Completed" },
-  { id: "ORD-002", customer: "Chamari Silva", amount: "LKR 12,870", status: "Processing" },
-  { id: "ORD-003", customer: "Kasun Fernando", amount: "LKR 98,670", status: "Completed" },
-  { id: "ORD-004", customer: "Dilini Rajapakse", amount: "LKR 32,670", status: "Pending" },
-];
+import { apiTryJson, apiJson } from "@/lib/api";
 
 export default function Home() {
   const [user, setUser] = useState<any>(null)
@@ -57,11 +30,10 @@ export default function Home() {
 
   const fetchEmployeeDashboard = async (userId: number) => {
     try {
-      const response = await fetch(`${API_BASE_URL}/api/EmployeeSelfService/dashboard/${userId}`)
-      if (response.ok) {
-        const data = await response.json()
-        setDashboardData(data)
-      }
+      const data = await apiJson<Record<string, unknown>>(
+        `/api/hr/EmployeeSelfService/dashboard/${userId}`
+      )
+      setDashboardData(data)
     } catch (error) {
       console.error("Error fetching dashboard:", error)
     } finally {
@@ -71,37 +43,99 @@ export default function Home() {
 
   const fetchAdminMetrics = async () => {
     try {
-      const [salesRes, inventoryRes, employeesRes, procurementRes, payrollRes] = await Promise.all([
-        fetch(`${API_BASE_URL}/api/sales/orders`),
-        fetch(`${API_BASE_URL}/api/inventory/products`),
-        fetch(`${API_BASE_URL}/api/hr/employees`),
-        fetch(`${API_BASE_URL}/api/procurement/orders`),
-        fetch(`${API_BASE_URL}/api/payroll/summary`)
+      const [sales, inventory, employees, procurement, payroll, incomeStmt] = await Promise.all([
+        apiTryJson<Array<Record<string, unknown>>>("/api/sales/orders"),
+        apiTryJson<Array<Record<string, unknown>>>("/api/inventory/products"),
+        apiTryJson<Array<Record<string, unknown>>>("/api/hr/employees"),
+        apiTryJson<Array<Record<string, unknown>>>("/api/procurement/orders"),
+        apiTryJson<Record<string, unknown>>("/api/payroll/summary"),
+        apiTryJson<Record<string, unknown>>("/api/accounting/Reports/income-statement"),
       ])
 
-      const sales = salesRes.ok ? await salesRes.json() : []
-      const inventory = inventoryRes.ok ? await inventoryRes.json() : []
-      const employees = employeesRes.ok ? await employeesRes.json() : []
-      const procurement = procurementRes.ok ? await procurementRes.json() : []
-      const payroll = payrollRes.ok ? await payrollRes.json() : null
+      const salesList = sales ?? []
+      const inventoryList = inventory ?? []
+      const employeeList = employees ?? []
+      const procurementList = procurement ?? []
 
-      // Calculate metrics
-      const totalRevenue = sales.reduce((sum: number, order: any) => sum + order.totalAmount, 0)
-      const pendingPOs = procurement.filter((po: any) => po.status === "Draft" || po.status === "Submitted").length
-      
+      const totalRevenue = salesList.reduce(
+        (sum, order) => sum + Number(order.totalAmount ?? order.TotalAmount ?? 0),
+        0
+      )
+      const expensesBlock = incomeStmt?.expenses as { total?: number } | undefined
+      const totalExpenses = Number(expensesBlock?.total ?? 0)
+
+      const inventoryValue = inventoryList.reduce(
+        (sum, p) =>
+          sum +
+          Number(p.quantity ?? p.Quantity ?? 0) * Number(p.costPrice ?? p.CostPrice ?? 0),
+        0
+      )
+
+      const pendingPOs = procurementList.filter(
+        (po) => po.status === "Draft" || po.status === "Submitted"
+      ).length
+
+      const payrollSummary = payroll ?? null
+
+      const now = new Date()
+      const monthFmt = new Intl.DateTimeFormat("en-US", { month: "short" })
+      const weekdayFmt = new Intl.DateTimeFormat("en-US", { weekday: "short" })
+
+      const monthlyBuckets = Array.from({ length: 6 }, (_, index) => {
+        const d = new Date(now.getFullYear(), now.getMonth() - (5 - index), 1)
+        const key = `${d.getFullYear()}-${d.getMonth()}`
+        return { key, month: monthFmt.format(d), revenue: 0 }
+      })
+      const monthlyIndex = new Map(monthlyBuckets.map((b, i) => [b.key, i]))
+
+      const dayOrder = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]
+      const weeklyBuckets = dayOrder.map((name) => ({ name, sales: 0 }))
+      const weeklyIndex = new Map(dayOrder.map((name, i) => [name, i]))
+
+      for (const order of salesList) {
+        const amount = Number(order.totalAmount ?? order.TotalAmount ?? 0)
+        const rawDate =
+          order.orderDate ??
+          order.OrderDate ??
+          order.createdAt ??
+          order.CreatedAt ??
+          order.createdOn ??
+          order.CreatedOn
+        if (!rawDate) continue
+
+        const parsed = new Date(String(rawDate))
+        if (Number.isNaN(parsed.getTime())) continue
+
+        const monthKey = `${parsed.getFullYear()}-${parsed.getMonth()}`
+        const monthIdx = monthlyIndex.get(monthKey)
+        if (monthIdx !== undefined) {
+          monthlyBuckets[monthIdx].revenue += amount
+        }
+
+        const dayName = weekdayFmt.format(parsed)
+        const dayIdx = weeklyIndex.get(dayName)
+        if (dayIdx !== undefined) {
+          weeklyBuckets[dayIdx].sales += amount
+        }
+      }
+
       setAdminMetrics({
         totalRevenue,
-        salesCount: sales.length,
-        inventoryCount: inventory.length,
-        employeeCount: employees.length,
+        totalExpenses,
+        salesCount: salesList.length,
+        inventoryValue,
+        inventoryCount: inventoryList.length,
+        employeeCount: employeeList.length,
         pendingPOs,
-        payrollSummary: payroll,
-        recentOrders: sales.slice(0, 4).map((order: any) => ({
+        payrollSummary,
+        revenueSeries: monthlyBuckets,
+        weeklySalesSeries: weeklyBuckets,
+        recentOrders: salesList.slice(0, 4).map((order) => ({
           id: `ORD-${order.id}`,
           customerId: order.customerId,
-          amount: `LKR ${order.totalAmount.toLocaleString()}`,
-          status: order.status
-        }))
+          amount: `LKR ${Number(order.totalAmount ?? order.TotalAmount ?? 0).toLocaleString()}`,
+          status: order.status,
+        })),
       })
     } catch (error) {
       console.error("Error fetching admin metrics:", error)
@@ -296,7 +330,7 @@ export default function Home() {
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-6">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Revenue</CardTitle>
+            <CardTitle className="text-sm font-medium">Total sales</CardTitle>
             <DollarSign className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
@@ -304,31 +338,35 @@ export default function Home() {
               LKR {adminMetrics?.totalRevenue?.toLocaleString() || "0"}
             </div>
             <p className="text-xs text-muted-foreground mt-1">
-              From {adminMetrics?.salesCount || 0} sales orders
+              {adminMetrics?.salesCount || 0} orders · sum of order totals
             </p>
           </CardContent>
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Sales Orders</CardTitle>
-            <ShoppingCart className="h-4 w-4 text-muted-foreground" />
+            <CardTitle className="text-sm font-medium">Expenses</CardTitle>
+            <TrendingDown className="h-4 w-4 text-red-500" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{adminMetrics?.salesCount || 0}</div>
+            <div className="text-2xl font-bold text-red-600">
+              LKR {adminMetrics?.totalExpenses?.toLocaleString() || "0"}
+            </div>
             <p className="text-xs text-muted-foreground mt-1">
-              Total orders placed
+              From income statement (period YTD)
             </p>
           </CardContent>
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Inventory Items</CardTitle>
+            <CardTitle className="text-sm font-medium">Inventory value</CardTitle>
             <Package className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{adminMetrics?.inventoryCount || 0}</div>
+            <div className="text-2xl font-bold">
+              LKR {adminMetrics?.inventoryValue?.toLocaleString(undefined, { maximumFractionDigits: 0 }) || "0"}
+            </div>
             <p className="text-xs text-muted-foreground mt-1">
-              Products in stock
+              {adminMetrics?.inventoryCount || 0} SKUs at cost
             </p>
           </CardContent>
         </Card>
@@ -383,7 +421,7 @@ export default function Home() {
           </CardHeader>
           <CardContent className="pl-2">
             <ResponsiveContainer width="100%" height={300}>
-              <AreaChart data={revenueData}>
+              <AreaChart data={adminMetrics?.revenueSeries || []}>
                 <defs>
                   <linearGradient id="colorRevenue" x1="0" y1="0" x2="0" y2="1">
                     <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.3} />
@@ -450,7 +488,7 @@ export default function Home() {
         </CardHeader>
         <CardContent>
           <ResponsiveContainer width="100%" height={300}>
-            <BarChart data={salesData}>
+            <BarChart data={adminMetrics?.weeklySalesSeries || []}>
               <XAxis dataKey="name" stroke="#888888" fontSize={12} tickLine={false} axisLine={false} />
               <YAxis stroke="#888888" fontSize={12} tickLine={false} axisLine={false} />
               <Tooltip

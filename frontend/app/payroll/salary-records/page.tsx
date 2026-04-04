@@ -8,10 +8,10 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Label } from "@/components/ui/label"
 import { Search, DollarSign, Users, TrendingUp, Edit } from "lucide-react"
-import { useRouter } from "next/navigation"
 import { toast } from "sonner"
-
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5166"
+import { apiJson } from "@/lib/api"
+import { ProtectedRoute } from "@/components/protected-route"
+import { UserRoles } from "@/lib/auth"
 
 interface SalaryRecord {
   id: number
@@ -25,7 +25,6 @@ interface SalaryRecord {
 }
 
 export default function SalaryRecordsPage() {
-  const router = useRouter()
   const [salaries, setSalaries] = useState<SalaryRecord[]>([])
   const [searchQuery, setSearchQuery] = useState("")
   const [isDialogOpen, setIsDialogOpen] = useState(false)
@@ -37,23 +36,12 @@ export default function SalaryRecordsPage() {
   })
 
   useEffect(() => {
-    const userRole = localStorage.getItem("userRole")
-    if (userRole !== "Admin" && userRole !== "Accountant" && userRole !== "HRManager") {
-      router.push("/")
-      return
-    }
     fetchSalaries()
-  }, [router])
+  }, [])
 
   const fetchSalaries = async () => {
     try {
-      const token = localStorage.getItem("token")
-      const response = await fetch(`${API_BASE_URL}/api/payroll/salaries`, {
-        headers: token ? { Authorization: `Bearer ${token}` } : undefined,
-      })
-
-      if (!response.ok) throw new Error("Failed to load salaries")
-      const data = await response.json()
+      const data = await apiJson<SalaryRecord[]>("/api/payroll/salaries")
       setSalaries(data)
     } catch (error) {
       console.error("Error fetching salaries:", error)
@@ -77,24 +65,14 @@ export default function SalaryRecordsPage() {
     if (!editingSalary) return
 
     try {
-      const token = localStorage.getItem("token")
-      const response = await fetch(`${API_BASE_URL}/api/payroll/salaries/${editingSalary.employeeId}`, {
+      await apiJson(`/api/payroll/salaries/${editingSalary.employeeId}`, {
         method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        },
-        body: JSON.stringify(formData)
+        body: JSON.stringify(formData),
       })
-
-      if (response.ok) {
-        toast.success("Salary updated successfully")
-        setIsDialogOpen(false)
-        setEditingSalary(null)
-        fetchSalaries()
-      } else {
-        toast.error("Failed to update salary")
-      }
+      toast.success("Salary updated successfully")
+      setIsDialogOpen(false)
+      setEditingSalary(null)
+      fetchSalaries()
     } catch (error) {
       console.error("Error updating salary:", error)
       toast.error("Failed to update salary")
@@ -120,6 +98,7 @@ export default function SalaryRecordsPage() {
   const avgSalary = salaries.length > 0 ? totalNetSalary / salaries.length : 0
 
   return (
+    <ProtectedRoute requiredRoles={[UserRoles.Admin, UserRoles.Accountant]}>
     <div className="flex flex-1 flex-col gap-6 p-6">
       <div className="flex items-center justify-between">
         <div>
@@ -276,5 +255,6 @@ export default function SalaryRecordsPage() {
         </DialogContent>
       </Dialog>
     </div>
+    </ProtectedRoute>
   )
 }

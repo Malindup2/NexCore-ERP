@@ -6,10 +6,10 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
 import { Star, TrendingUp, TrendingDown, Minus } from "lucide-react"
-import { getUser } from "@/lib/auth"
+import { getUser, UserRoles } from "@/lib/auth"
 import { useRouter } from "next/navigation"
-
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5166"
+import { apiJson } from "@/lib/api"
+import { ProtectedRoute } from "@/components/protected-route"
 
 interface PerformanceReview {
   id: number
@@ -50,12 +50,11 @@ export default function PerformanceReviewPage() {
 
   const fetchReviewData = async (userId: number) => {
     try {
-      const response = await fetch(`${API_BASE_URL}/api/EmployeeSelfService/reviews/${userId}`)
-      if (response.ok) {
-        const data = await response.json()
-        setReviews(data.reviews || [])
-        setSummary(data.summary || null)
-      }
+      const data = await apiJson<{ reviews?: PerformanceReview[]; summary?: ReviewSummary }>(
+        `/api/hr/EmployeeSelfService/reviews/${userId}`
+      )
+      setReviews(data.reviews ?? [])
+      setSummary(data.summary ?? null)
     } catch (error) {
       console.error("Error fetching review data:", error)
     } finally {
@@ -105,6 +104,7 @@ export default function PerformanceReviewPage() {
   }
 
   return (
+    <ProtectedRoute requiredRoles={[UserRoles.Employee]}>
     <div className="flex flex-1 flex-col gap-6 p-6">
       <div>
         <h1 className="text-3xl font-bold tracking-tight">My Reviews</h1>
@@ -188,5 +188,6 @@ export default function PerformanceReviewPage() {
         </CardContent>
       </Card>
     </div>
+    </ProtectedRoute>
   )
 }

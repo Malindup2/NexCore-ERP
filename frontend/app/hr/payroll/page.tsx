@@ -9,8 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Calendar, DollarSign, Download, FileText } from "lucide-react"
 import { getUser, UserRoles } from "@/lib/auth"
 import { ProtectedRoute } from "@/components/protected-route"
-
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5166"
+import { apiJson } from "@/lib/api"
 
 interface PayrollRecord {
   id: number
@@ -47,12 +46,11 @@ export default function PayrollPage() {
 
   const fetchPayrollData = async (userId: number) => {
     try {
-      const response = await fetch(`${API_BASE_URL}/api/EmployeeSelfService/payroll/${userId}`)
-      if (response.ok) {
-        const data = await response.json()
-        setPayrollRecords(data.records)
-        setSummary(data.summary)
-      }
+      const data = await apiJson<{ records: PayrollRecord[]; summary: unknown }>(
+        `/api/hr/EmployeeSelfService/payroll/${userId}`
+      )
+      setPayrollRecords(data.records)
+      setSummary(data.summary)
     } catch (error) {
       console.error("Error fetching payroll:", error)
     } finally {
@@ -82,6 +80,7 @@ export default function PayrollPage() {
   const uniqueMonths = Array.from(new Set(payrollRecords.map(r => r.monthYear)))
 
   return (
+    <ProtectedRoute requiredRoles={[UserRoles.Employee]}>
     <div className="flex flex-1 flex-col gap-6 p-6">
       <div className="flex items-center justify-between">
         <div>
@@ -189,5 +188,6 @@ export default function PayrollPage() {
         </CardContent>
       </Card>
     </div>
+    </ProtectedRoute>
   )
 }

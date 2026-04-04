@@ -4,12 +4,13 @@ using HRService.Models;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using System.Security.Claims;
 
 namespace HRService.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
-    [Authorize(Roles = "Admin,HRManager")]
+    [Authorize]
     public class AttendanceController : ControllerBase
     {
         private readonly HrDbContext _context;
@@ -23,10 +24,25 @@ namespace HRService.Controllers
 
         // POST: api/Attendance/check-in
         [HttpPost("check-in")]
+        [Authorize(Roles = "Employee")]
         public async Task<IActionResult> CheckIn([FromBody] CheckInRequest request)
         {
             try
             {
+                var userIdClaim = User.FindFirstValue(ClaimTypes.NameIdentifier)
+                    ?? User.FindFirstValue("sub");
+                if (!int.TryParse(userIdClaim, out var authenticatedUserId))
+                {
+                    return Unauthorized(new { message = "Invalid user context" });
+                }
+
+                var employee = await _context.Employees
+                    .FirstOrDefaultAsync(e => e.Id == request.EmployeeId && e.UserId == authenticatedUserId && e.IsActive);
+                if (employee == null)
+                {
+                    return Forbid();
+                }
+
                 var today = DateTime.UtcNow.Date;
                 
                 // Check if already checked in today
@@ -63,15 +79,30 @@ namespace HRService.Controllers
 
         // POST: api/Attendance/check-out
         [HttpPost("check-out")]
+        [Authorize(Roles = "Employee")]
         public async Task<IActionResult> CheckOut([FromBody] CheckOutRequest request)
         {
             try
             {
+                var userIdClaim = User.FindFirstValue(ClaimTypes.NameIdentifier)
+                    ?? User.FindFirstValue("sub");
+                if (!int.TryParse(userIdClaim, out var authenticatedUserId))
+                {
+                    return Unauthorized(new { message = "Invalid user context" });
+                }
+
                 var attendance = await _context.Attendances.FindAsync(request.AttendanceId);
 
                 if (attendance == null)
                 {
                     return NotFound(new { message = "Attendance record not found" });
+                }
+
+                var employee = await _context.Employees
+                    .FirstOrDefaultAsync(e => e.Id == attendance.EmployeeId && e.UserId == authenticatedUserId && e.IsActive);
+                if (employee == null)
+                {
+                    return Forbid();
                 }
 
                 if (attendance.CheckOutTime != null)
@@ -118,6 +149,7 @@ namespace HRService.Controllers
 
         // GET: api/Attendance/employee/{employeeId}
         [HttpGet("employee/{employeeId}")]
+        [Authorize(Roles = "Admin,HRManager")]
         public async Task<IActionResult> GetEmployeeAttendance(int employeeId, [FromQuery] DateTime? startDate, [FromQuery] DateTime? endDate)
         {
             try
@@ -165,6 +197,7 @@ namespace HRService.Controllers
 
         // GET: api/Attendance/today/{employeeId}
         [HttpGet("today/{employeeId}")]
+        [Authorize(Roles = "Admin,HRManager")]
         public async Task<IActionResult> GetTodayAttendance(int employeeId)
         {
             try
@@ -197,6 +230,7 @@ namespace HRService.Controllers
 
         // POST: api/Attendance/manual
         [HttpPost("manual")]
+        [Authorize(Roles = "Admin,HRManager")]
         public async Task<IActionResult> CreateManualAttendance([FromBody] ManualAttendanceRequest request)
         {
             try
@@ -209,11 +243,16 @@ namespace HRService.Controllers
                     return BadRequest(new { message = "Attendance already exists for this date" });
                 }
 
+                if (!Enum.TryParse<AttendanceStatus>(request.Status, ignoreCase: true, out var parsedStatus))
+                {
+                    return BadRequest(new { message = "Invalid attendance status" });
+                }
+
                 var attendance = new Attendance
                 {
                     EmployeeId = request.EmployeeId,
                     Date = request.Date.ToUniversalTime(),
-                    Status = Enum.Parse<AttendanceStatus>(request.Status),
+                    Status = parsedStatus,
                     CheckInTime = request.CheckInTime?.ToUniversalTime(),
                     CheckOutTime = request.CheckOutTime?.ToUniversalTime(),
                     Notes = request.Notes,
@@ -246,6 +285,7 @@ namespace HRService.Controllers
 
         // POST: api/Attendance/report
         [HttpPost("report")]
+        [Authorize(Roles = "Admin,HRManager")]
         public async Task<IActionResult> GetAttendanceReport([FromBody] AttendanceReportRequest request)
         {
             try
@@ -293,6 +333,7 @@ namespace HRService.Controllers
 
         // GET: api/Attendance
         [HttpGet]
+        [Authorize(Roles = "Admin,HRManager")]
         public async Task<IActionResult> GetAllAttendance([FromQuery] DateTime? date)
         {
             try

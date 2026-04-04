@@ -6,10 +6,10 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
 import { Clock, CheckCircle, XCircle, Calendar } from "lucide-react"
-import { getUser } from "@/lib/auth"
+import { getUser, UserRoles } from "@/lib/auth"
 import { useRouter } from "next/navigation"
-
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5166"
+import { apiJson, ApiError } from "@/lib/api"
+import { ProtectedRoute } from "@/components/protected-route"
 
 interface AttendanceRecord {
   id: number
@@ -49,38 +49,24 @@ export default function AttendancePage() {
     }
     setUser(currentUser)
     fetchAttendanceData(currentUser.id)
-    
-    const timer = setInterval(() => setCurrentTime(new Date()), 1000)
-    return () => clearInterval(timer)
-  }, [])
 
-  useEffect(() => {
-    const currentUser = getUser()
-    if (!currentUser) {
-      router.push("/auth/login")
-      return
-    }
-    setUser(currentUser)
-    fetchAttendanceData(currentUser.id)
-    
     const timer = setInterval(() => setCurrentTime(new Date()), 1000)
     return () => clearInterval(timer)
-  }, [])
+  }, [router])
 
   const fetchAttendanceData = async (userId: number) => {
     try {
-      const response = await fetch(`${API_BASE_URL}/api/EmployeeSelfService/attendance/${userId}`)
-      if (response.ok) {
-        const data = await response.json()
-        setAttendanceData(data)
-        
-        // Find today's record
-        const today = new Date().toISOString().split('T')[0]
-        const todayRec = data.records?.find((r: AttendanceRecord) => 
-          new Date(r.date).toISOString().split('T')[0] === today
-        )
-        setTodayRecord(todayRec || null)
-      }
+      const data = await apiJson<AttendanceData>(
+        `/api/hr/EmployeeSelfService/attendance/${userId}`
+      )
+      setAttendanceData(data)
+
+      const today = new Date().toISOString().split("T")[0]
+      const todayRec = data.records?.find(
+        (r: AttendanceRecord) =>
+          new Date(r.date).toISOString().split("T")[0] === today
+      )
+      setTodayRecord(todayRec || null)
     } catch (error) {
       console.error("Error fetching attendance:", error)
     } finally {
@@ -93,25 +79,27 @@ export default function AttendancePage() {
     
     setActionLoading(true)
     try {
-      const response = await fetch(`${API_BASE_URL}/api/Attendance/check-in`, {
+      await apiJson("/api/hr/Attendance/check-in", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           employeeId: user.id,
           location: "Office",
-          notes: ""
-        })
+          notes: "",
+        }),
       })
-
-      if (response.ok) {
-        await fetchAttendanceData(user.id)
-      } else {
-        const error = await response.json()
-        alert(error.message || "Failed to check in")
-      }
+      await fetchAttendanceData(user.id)
     } catch (error) {
       console.error("Check-in error:", error)
-      alert("Failed to check in")
+      if (error instanceof ApiError) {
+        try {
+          const j = JSON.parse(error.message)
+          alert(j.message || "Failed to check in")
+        } catch {
+          alert(error.message || "Failed to check in")
+        }
+      } else {
+        alert("Failed to check in")
+      }
     } finally {
       setActionLoading(false)
     }
@@ -122,24 +110,26 @@ export default function AttendancePage() {
 
     setActionLoading(true)
     try {
-      const response = await fetch(`${API_BASE_URL}/api/Attendance/check-out`, {
+      await apiJson("/api/hr/Attendance/check-out", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           attendanceId: todayRecord.id,
-          notes: ""
-        })
+          notes: "",
+        }),
       })
-
-      if (response.ok) {
-        await fetchAttendanceData(user.id)
-      } else {
-        const error = await response.json()
-        alert(error.message || "Failed to check out")
-      }
+      await fetchAttendanceData(user.id)
     } catch (error) {
       console.error("Check-out error:", error)
-      alert("Failed to check out")
+      if (error instanceof ApiError) {
+        try {
+          const j = JSON.parse(error.message)
+          alert(j.message || "Failed to check out")
+        } catch {
+          alert(error.message || "Failed to check out")
+        }
+      } else {
+        alert("Failed to check out")
+      }
     } finally {
       setActionLoading(false)
     }
@@ -180,6 +170,7 @@ export default function AttendancePage() {
   }
 
   return (
+    <ProtectedRoute requiredRoles={[UserRoles.Employee]}>
     <div className="flex flex-1 flex-col gap-6 p-6">
       <div>
         <h1 className="text-3xl font-bold tracking-tight">My Attendance</h1>
@@ -376,5 +367,6 @@ export default function AttendancePage() {
         </CardContent>
       </Card>
     </div>
+    </ProtectedRoute>
   )
 }

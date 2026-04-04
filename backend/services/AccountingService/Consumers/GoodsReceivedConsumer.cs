@@ -14,78 +14,94 @@ namespace AccountingService.Consumers
 {
     public class GoodsReceivedConsumer : BackgroundService
     {
-        private readonly IConnection _connection;
-        private readonly IModel _channel;
+        private IConnection? _connection;
+        private IModel? _channel;
         private readonly IServiceScopeFactory _scopeFactory;
         private readonly ILogger<GoodsReceivedConsumer> _logger;
-        private readonly string _queueName;
+        private readonly string _queueName = "accounting.procurement.goods.queue";
 
         public GoodsReceivedConsumer(IServiceScopeFactory scopeFactory, ILogger<GoodsReceivedConsumer> logger)
         {
             _scopeFactory = scopeFactory;
             _logger = logger;
-
-            var factory = new ConnectionFactory
-            {
-                HostName = "localhost",
-                Port = 5672,
-                UserName = "guest",
-                Password = "guest"
-            };
-
-            _connection = factory.CreateConnection();
-            _channel = _connection.CreateModel();
-
-            // Declare Exchange
-            _channel.ExchangeDeclare("procurement.events", ExchangeType.Fanout, durable: true);
-
-            // Create Queue & Bind
-            _queueName = "accounting.procurement.goods.queue";
-            _channel.QueueDeclare(queue: _queueName, durable: true, exclusive: false, autoDelete: false);
-            _channel.QueueBind(_queueName, "procurement.events", "");
         }
 
-        protected override Task ExecuteAsync(CancellationToken stoppingToken)
+        protected override async Task ExecuteAsync(CancellationToken stoppingToken)
         {
-            var consumer = new EventingBasicConsumer(_channel);
+            await Task.Delay(5000, stoppingToken);
 
-            consumer.Received += async (model, ea) =>
+            while (!stoppingToken.IsCancellationRequested)
             {
-                var body = ea.Body.ToArray();
-                var message = Encoding.UTF8.GetString(body);
-
                 try
                 {
-                    _logger.LogInformation($" [Accounting] Received Goods Received Event: {message}");
-
-                    var options = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
-                    var eventData = JsonSerializer.Deserialize<GoodsReceivedEvent>(message, options);
-
-                    if (eventData != null)
+                    var factory = new ConnectionFactory
                     {
-                        await RecordPurchaseTransaction(eventData);
-                        
-                        // Acknowledge successful processing
-                        _channel.BasicAck(ea.DeliveryTag, false);
-                        _logger.LogInformation($"[Accounting] Successfully processed goods received for PO #{eventData.PurchaseOrderId}");
-                    }
-                    else
+                        HostName = "localhost",
+                        Port = 5672,
+                        UserName = "guest",
+                        Password = "guest"
+                    };
+
+                    _connection = factory.CreateConnection();
+                    _channel = _connection.CreateModel();
+
+                    _channel.ExchangeDeclare("procurement.events", ExchangeType.Fanout, durable: true);
+                    _channel.QueueDeclare(queue: _queueName, durable: true, exclusive: false, autoDelete: false);
+                    _channel.QueueBind(_queueName, "procurement.events", "");
+
+                    _logger.LogInformation("[AccountingService] Connected to RabbitMQ. Listening for goods received events...");
+
+                    var consumer = new EventingBasicConsumer(_channel);
+
+                    consumer.Received += async (model, ea) =>
                     {
-                        _logger.LogWarning("Failed to deserialize goods received event");
-                        _channel.BasicNack(ea.DeliveryTag, false, false); // Don't requeue invalid messages
+                        var body = ea.Body.ToArray();
+                        var message = Encoding.UTF8.GetString(body);
+
+                        try
+                        {
+                            _logger.LogInformation($"[AccountingService] Received Goods Received Event: {message}");
+
+                            var options = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
+                            var eventData = JsonSerializer.Deserialize<GoodsReceivedEvent>(message, options);
+
+                            if (eventData != null)
+                            {
+                                await RecordPurchaseTransaction(eventData);
+                                _channel.BasicAck(ea.DeliveryTag, false);
+                                _logger.LogInformation($"[AccountingService] Successfully processed goods received for PO #{eventData.PurchaseOrderId}");
+                            }
+                            else
+                            {
+                                _logger.LogWarning("Failed to deserialize goods received event");
+                                _channel.BasicNack(ea.DeliveryTag, false, false);
+                            }
+                        }
+                        catch (Exception ex)
+                        {
+                            _logger.LogError($"[AccountingService] Error processing goods received: {ex.Message}");
+                            _channel.BasicNack(ea.DeliveryTag, false, true);
+                        }
+                    };
+
+                    _channel.BasicConsume(_queueName, autoAck: false, consumer);
+
+                    while (!stoppingToken.IsCancellationRequested && _connection.IsOpen)
+                    {
+                        await Task.Delay(5000, stoppingToken);
                     }
+                }
+                catch (OperationCanceledException)
+                {
+                    break;
                 }
                 catch (Exception ex)
                 {
-                    _logger.LogError($" Error processing goods received in accounting: {ex.Message}");
-                    // Reject and requeue for retry
-                    _channel.BasicNack(ea.DeliveryTag, false, true);
+                    _logger.LogWarning($"[AccountingService] RabbitMQ connection failed: {ex.Message}. Retrying in 10 seconds...");
+                    CleanupConnection();
+                    try { await Task.Delay(10000, stoppingToken); } catch (OperationCanceledException) { break; }
                 }
-            };
-
-            // Change autoAck to false for manual acknowledgment
-            _channel.BasicConsume(_queueName, autoAck: false, consumer);
-            return Task.CompletedTask;
+            }
         }
 
         private async Task RecordPurchaseTransaction(GoodsReceivedEvent eventData)
@@ -94,7 +110,6 @@ namespace AccountingService.Consumers
             {
                 var context = scope.ServiceProvider.GetRequiredService<AccountingDbContext>();
 
-                // Find required accounts
                 var inventoryAsset = await context.Accounts
                     .FirstOrDefaultAsync(a => a.AccountCode == "1300");
                 var accountsPayable = await context.Accounts
@@ -106,10 +121,8 @@ namespace AccountingService.Consumers
                     return;
                 }
 
-                // Use actual amount from purchase order
                 decimal actualAmount = eventData.TotalAmount;
 
-                // Journal Entry: Record Inventory Purchase
                 var purchaseJournalEntry = new JournalEntry
                 {
                     Date = eventData.ReceivedDate,
@@ -134,20 +147,26 @@ namespace AccountingService.Consumers
 
                 context.JournalEntries.Add(purchaseJournalEntry);
 
-                // Update Account Balances
                 inventoryAsset.Balance += actualAmount;
                 accountsPayable.Balance += actualAmount;
 
                 await context.SaveChangesAsync();
 
-                _logger.LogInformation($"[Accounting] Recorded Purchase: PO #{eventData.PurchaseOrderId} | SKU: {eventData.ProductSku} | Qty: {eventData.QuantityReceived} | Amount: {actualAmount:C}");
+                _logger.LogInformation($"[AccountingService] Recorded Purchase: PO #{eventData.PurchaseOrderId} | SKU: {eventData.ProductSku} | Qty: {eventData.QuantityReceived} | Amount: {actualAmount:C}");
             }
+        }
+
+        private void CleanupConnection()
+        {
+            try { _channel?.Close(); } catch { }
+            try { _connection?.Close(); } catch { }
+            _channel = null;
+            _connection = null;
         }
 
         public override void Dispose()
         {
-            _channel?.Close();
-            _connection?.Close();
+            CleanupConnection();
             base.Dispose();
         }
     }

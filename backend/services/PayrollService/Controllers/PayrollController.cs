@@ -9,7 +9,7 @@ namespace PayrollService.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
-    [Authorize(Roles = "Admin,Accountant")]
+    [Authorize]
     public class PayrollController : ControllerBase
     {
         private readonly PayrollDbContext _context;
@@ -23,6 +23,7 @@ namespace PayrollService.Controllers
 
         // Get all salary records
         [HttpGet("salaries")]
+        [Authorize(Roles = "Admin,Accountant")]
         public async Task<IActionResult> GetAllSalaries()
         {
             var salaries = await _context.SalaryRecords.ToListAsync();
@@ -31,6 +32,7 @@ namespace PayrollService.Controllers
 
         // Get salary by employee ID
         [HttpGet("salaries/{employeeId}")]
+        [Authorize(Roles = "Admin,Accountant")]
         public async Task<IActionResult> GetEmployeeSalary(int employeeId)
         {
             var salary = await _context.SalaryRecords
@@ -44,6 +46,7 @@ namespace PayrollService.Controllers
 
         // Update salary structure
         [HttpPut("salaries/{employeeId}")]
+        [Authorize(Roles = "Admin,Accountant")]
         public async Task<IActionResult> UpdateSalary(int employeeId, [FromBody] UpdateSalaryRequest request)
         {
             var salary = await _context.SalaryRecords
@@ -70,6 +73,7 @@ namespace PayrollService.Controllers
 
         // Process monthly payroll
         [HttpPost("process-payroll")]
+        [Authorize(Roles = "Admin,Accountant")]
         public async Task<IActionResult> ProcessPayroll([FromBody] ProcessPayrollRequest request)
         {
             var year = request.Year ?? DateTime.UtcNow.Year;
@@ -129,6 +133,7 @@ namespace PayrollService.Controllers
 
         // Get payroll history
         [HttpGet("payroll-runs")]
+        [Authorize(Roles = "Admin,Accountant")]
         public async Task<IActionResult> GetPayrollHistory()
         {
             var history = await _context.PayrollRuns
@@ -141,6 +146,7 @@ namespace PayrollService.Controllers
 
         // Get specific payroll run
         [HttpGet("payroll-runs/{year}/{month}")]
+        [Authorize(Roles = "Admin,Accountant")]
         public async Task<IActionResult> GetPayrollRun(int year, int month)
         {
             var payrollRun = await _context.PayrollRuns
@@ -214,6 +220,7 @@ namespace PayrollService.Controllers
 
         // Calculate payroll summary
         [HttpGet("summary")]
+        [Authorize(Roles = "Admin,Accountant")]
         public async Task<IActionResult> GetPayrollSummary()
         {
             var salaries = await _context.SalaryRecords.ToListAsync();

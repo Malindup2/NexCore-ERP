@@ -9,8 +9,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Label } from "@/components/ui/label"
 import { Plus, Search, Users, Mail, Phone, Edit, Trash2 } from "lucide-react"
 import { useRouter } from "next/navigation"
-
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5166"
+import { apiJson, ApiError } from "@/lib/api"
 
 interface Customer {
   id: number
@@ -45,12 +44,11 @@ export default function CustomersPage() {
 
   const fetchCustomers = async () => {
     try {
-      const response = await fetch(`${API_BASE_URL}/api/sales/customers`)
-      const data = await response.json()
+      const data = await apiJson<Customer[]>("/api/sales/customers")
       setCustomers(data)
-      setLoading(false)
     } catch (error) {
       console.error("Error fetching customers:", error)
+    } finally {
       setLoading(false)
     }
   }
@@ -58,23 +56,21 @@ export default function CustomersPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     try {
-      const url = editingCustomer 
-        ? `${API_BASE_URL}/api/sales/customers/${editingCustomer.id}`
-        : `${API_BASE_URL}/api/sales/customers`
-      
-      const response = await fetch(url, {
+      const path = editingCustomer
+        ? `/api/sales/customers/${editingCustomer.id}`
+        : "/api/sales/customers"
+      await apiJson(path, {
         method: editingCustomer ? "PUT" : "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(formData)
+        body: JSON.stringify(formData),
       })
-
-      if (response.ok) {
-        setIsDialogOpen(false)
-        resetForm()
-        fetchCustomers()
-      }
+      setIsDialogOpen(false)
+      resetForm()
+      fetchCustomers()
     } catch (error) {
       console.error("Error saving customer:", error)
+      if (error instanceof ApiError) {
+        alert(error.message)
+      }
     }
   }
 
@@ -93,16 +89,11 @@ export default function CustomersPage() {
     if (!confirm("Are you sure you want to delete this customer? This will fail if they have existing orders.")) return
     
     try {
-      const response = await fetch(`${API_BASE_URL}/api/sales/customers/${id}`, {
-        method: "DELETE"
-      })
-      if (response.ok) {
-        fetchCustomers()
-      } else {
-        alert("Cannot delete customer with existing orders")
-      }
+      await apiJson(`/api/sales/customers/${id}`, { method: "DELETE" })
+      fetchCustomers()
     } catch (error) {
       console.error("Error deleting customer:", error)
+      alert("Cannot delete customer with existing orders")
     }
   }
 

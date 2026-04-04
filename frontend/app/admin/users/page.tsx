@@ -14,8 +14,7 @@ import { UserRoles } from "@/lib/auth"
 import { Plus, UserCog, Edit, Trash2 } from "lucide-react"
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog"
 import { toast } from "sonner"
-
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5166"
+import { apiJson, ApiError } from "@/lib/api"
 
 interface User {
   id: number
@@ -52,17 +51,8 @@ export default function AdminUsersPage() {
 
   const fetchUsers = async () => {
     try {
-      const token = localStorage.getItem("token")
-      const response = await fetch(`${API_BASE_URL}/api/auth/users`, {
-        headers: {
-          "Authorization": `Bearer ${token}`
-        }
-      })
-      
-      if (response.ok) {
-        const data = await response.json()
-        setUsers(data)
-      }
+      const data = await apiJson<User[]>("/api/auth/users")
+      setUsers(data)
     } catch (err) {
       console.error("Failed to fetch users:", err)
     }
@@ -73,28 +63,22 @@ export default function AdminUsersPage() {
     setLoading(true)
 
     try {
-      const token = localStorage.getItem("token")
-      const response = await fetch(`${API_BASE_URL}/api/auth/admin/create-user`, {
+      const data = await apiJson<{ user: User }>("/api/auth/admin/create-user", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${token}`
-        },
-        body: JSON.stringify(newUser)
+        body: JSON.stringify(newUser),
       })
-
-      if (!response.ok) {
-        const errorData = await response.json()
-        throw new Error(errorData.message || "Failed to create user")
-      }
-
-      const data = await response.json()
       toast.success(`User ${data.user.username} created successfully!`)
       setNewUser({ username: "", email: "", password: "", role: "" })
       setIsDialogOpen(false)
       fetchUsers()
-    } catch (err: any) {
-      toast.error(err.message || "Failed to create user")
+    } catch (err: unknown) {
+      const msg =
+        err instanceof ApiError
+          ? err.message
+          : err instanceof Error
+            ? err.message
+            : "Failed to create user"
+      toast.error(msg)
     } finally {
       setLoading(false)
     }
@@ -107,28 +91,18 @@ export default function AdminUsersPage() {
     setLoading(true)
 
     try {
-      const token = localStorage.getItem("token")
-      const response = await fetch(`${API_BASE_URL}/api/auth/users/${selectedUser.id}`, {
+      const data = await apiJson<{ user: User }>(`/api/auth/users/${selectedUser.id}`, {
         method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${token}`
-        },
-        body: JSON.stringify(editUser)
+        body: JSON.stringify(editUser),
       })
-
-      if (!response.ok) {
-        const result = await response.json()
-        throw new Error(result.message || "Failed to update user")
-      }
-
-      const data = await response.json()
       toast.success(`User ${data.user.username} updated successfully!`)
       setIsEditDialogOpen(false)
       setSelectedUser(null)
       fetchUsers()
-    } catch (err: any) {
-      toast.error(err.message || "Failed to update user")
+    } catch (err: unknown) {
+      const msg =
+        err instanceof ApiError ? err.message : err instanceof Error ? err.message : "Failed to update user"
+      toast.error(msg)
     } finally {
       setLoading(false)
     }
@@ -140,25 +114,15 @@ export default function AdminUsersPage() {
     setLoading(true)
 
     try {
-      const token = localStorage.getItem("token")
-      const response = await fetch(`${API_BASE_URL}/api/auth/users/${selectedUser.id}`, {
-        method: "DELETE",
-        headers: {
-          "Authorization": `Bearer ${token}`
-        }
-      })
-
-      if (!response.ok) {
-        const result = await response.json()
-        throw new Error(result.message || "Failed to delete user")
-      }
-
+      await apiJson(`/api/auth/users/${selectedUser.id}`, { method: "DELETE" })
       toast.success(`User ${selectedUser.username} deleted successfully!`)
       setIsDeleteDialogOpen(false)
       setSelectedUser(null)
       fetchUsers()
-    } catch (err: any) {
-      toast.error(err.message || "Failed to delete user")
+    } catch (err: unknown) {
+      const msg =
+        err instanceof ApiError ? err.message : err instanceof Error ? err.message : "Failed to delete user"
+      toast.error(msg)
     } finally {
       setLoading(false)
     }

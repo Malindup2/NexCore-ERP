@@ -1,4 +1,4 @@
-﻿using System.Text;
+using System.Text;
 using System.Text.Json;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.DependencyInjection;
@@ -14,78 +14,94 @@ namespace AccountingService.Consumers
 {
     public class SalesOrderCreatedConsumer : BackgroundService
     {
-        private readonly IConnection _connection;
-        private readonly IModel _channel;
+        private IConnection? _connection;
+        private IModel? _channel;
         private readonly IServiceScopeFactory _scopeFactory;
         private readonly ILogger<SalesOrderCreatedConsumer> _logger;
-        private readonly string _queueName;
+        private readonly string _queueName = "accounting.sales.orders.queue";
 
         public SalesOrderCreatedConsumer(IServiceScopeFactory scopeFactory, ILogger<SalesOrderCreatedConsumer> logger)
         {
             _scopeFactory = scopeFactory;
             _logger = logger;
-
-            var factory = new ConnectionFactory
-            {
-                HostName = "localhost",
-                Port = 5672,
-                UserName = "guest",
-                Password = "guest"
-            };
-
-            _connection = factory.CreateConnection();
-            _channel = _connection.CreateModel();
-
-            // Declare Exchange
-            _channel.ExchangeDeclare("sales.events", ExchangeType.Fanout, durable: true);
-
-            // Create Queue & Bind
-            _queueName = "accounting.sales.orders.queue";
-            _channel.QueueDeclare(queue: _queueName, durable: true, exclusive: false, autoDelete: false);
-            _channel.QueueBind(_queueName, "sales.events", "");
         }
 
-        protected override Task ExecuteAsync(CancellationToken stoppingToken)
+        protected override async Task ExecuteAsync(CancellationToken stoppingToken)
         {
-            var consumer = new EventingBasicConsumer(_channel);
+            await Task.Delay(5000, stoppingToken);
 
-            consumer.Received += async (model, ea) =>
+            while (!stoppingToken.IsCancellationRequested)
             {
-                var body = ea.Body.ToArray();
-                var message = Encoding.UTF8.GetString(body);
-
                 try
                 {
-                    _logger.LogInformation($" [Accounting] Received Sales Order: {message}");
-
-                    var options = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
-                    var eventData = JsonSerializer.Deserialize<SalesOrderCreatedEvent>(message, options);
-
-                    if (eventData != null)
+                    var factory = new ConnectionFactory
                     {
-                        await RecordSalesTransaction(eventData);
-                        
-                        // Acknowledge successful processing
-                        _channel.BasicAck(ea.DeliveryTag, false);
-                        _logger.LogInformation($"[Accounting] Successfully processed sales order #{eventData.OrderNumber}");
-                    }
-                    else
+                        HostName = "localhost",
+                        Port = 5672,
+                        UserName = "guest",
+                        Password = "guest"
+                    };
+
+                    _connection = factory.CreateConnection();
+                    _channel = _connection.CreateModel();
+
+                    _channel.ExchangeDeclare("sales.events", ExchangeType.Fanout, durable: true);
+                    _channel.QueueDeclare(queue: _queueName, durable: true, exclusive: false, autoDelete: false);
+                    _channel.QueueBind(_queueName, "sales.events", "");
+
+                    _logger.LogInformation("[AccountingService] Connected to RabbitMQ. Listening for sales order events...");
+
+                    var consumer = new EventingBasicConsumer(_channel);
+
+                    consumer.Received += async (model, ea) =>
                     {
-                        _logger.LogWarning("Failed to deserialize sales order event");
-                        _channel.BasicNack(ea.DeliveryTag, false, false); // Don't requeue invalid messages
+                        var body = ea.Body.ToArray();
+                        var message = Encoding.UTF8.GetString(body);
+
+                        try
+                        {
+                            _logger.LogInformation($"[AccountingService] Received Sales Order: {message}");
+
+                            var options = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
+                            var eventData = JsonSerializer.Deserialize<SalesOrderCreatedEvent>(message, options);
+
+                            if (eventData != null)
+                            {
+                                await RecordSalesTransaction(eventData);
+                                _channel.BasicAck(ea.DeliveryTag, false);
+                                _logger.LogInformation($"[AccountingService] Successfully processed sales order #{eventData.OrderNumber}");
+                            }
+                            else
+                            {
+                                _logger.LogWarning("Failed to deserialize sales order event");
+                                _channel.BasicNack(ea.DeliveryTag, false, false);
+                            }
+                        }
+                        catch (Exception ex)
+                        {
+                            _logger.LogError($"[AccountingService] Error processing sales order: {ex.Message}");
+                            _channel.BasicNack(ea.DeliveryTag, false, true);
+                        }
+                    };
+
+                    _channel.BasicConsume(_queueName, autoAck: false, consumer);
+
+                    while (!stoppingToken.IsCancellationRequested && _connection.IsOpen)
+                    {
+                        await Task.Delay(5000, stoppingToken);
                     }
+                }
+                catch (OperationCanceledException)
+                {
+                    break;
                 }
                 catch (Exception ex)
                 {
-                    _logger.LogError($" Error processing sales order in accounting: {ex.Message}");
-                    // Reject and requeue for retry
-                    _channel.BasicNack(ea.DeliveryTag, false, true);
+                    _logger.LogWarning($"[AccountingService] RabbitMQ connection failed: {ex.Message}. Retrying in 10 seconds...");
+                    CleanupConnection();
+                    try { await Task.Delay(10000, stoppingToken); } catch (OperationCanceledException) { break; }
                 }
-            };
-
-            // Change autoAck to false for manual acknowledgment
-            _channel.BasicConsume(_queueName, autoAck: false, consumer);
-            return Task.CompletedTask;
+            }
         }
 
         private async Task RecordSalesTransaction(SalesOrderCreatedEvent eventData)
@@ -94,7 +110,6 @@ namespace AccountingService.Consumers
             {
                 var context = scope.ServiceProvider.GetRequiredService<AccountingDbContext>();
 
-                // Find required accounts for revenue recognition
                 var accountsReceivable = await context.Accounts
                     .FirstOrDefaultAsync(a => a.AccountCode == "1200");
                 var salesRevenue = await context.Accounts
@@ -106,8 +121,6 @@ namespace AccountingService.Consumers
                     return;
                 }
 
-                // Journal Entry: Record Sale (Revenue Recognition)
-                // Note: COGS is now handled separately by StockDeductedConsumer with actual costs
                 var saleJournalEntry = new JournalEntry
                 {
                     Date = DateTime.UtcNow,
@@ -132,20 +145,26 @@ namespace AccountingService.Consumers
 
                 context.JournalEntries.Add(saleJournalEntry);
 
-                // Update Account Balances
                 accountsReceivable.Balance += eventData.TotalAmount;
                 salesRevenue.Balance += eventData.TotalAmount;
 
                 await context.SaveChangesAsync();
 
-                _logger.LogInformation($"[Accounting] Recorded Revenue: Order #{eventData.OrderNumber} | Amount: {eventData.TotalAmount:C}");
+                _logger.LogInformation($"[AccountingService] Recorded Revenue: Order #{eventData.OrderNumber} | Amount: {eventData.TotalAmount:C}");
             }
+        }
+
+        private void CleanupConnection()
+        {
+            try { _channel?.Close(); } catch { }
+            try { _connection?.Close(); } catch { }
+            _channel = null;
+            _connection = null;
         }
 
         public override void Dispose()
         {
-            _channel?.Close();
-            _connection?.Close();
+            CleanupConnection();
             base.Dispose();
         }
     }

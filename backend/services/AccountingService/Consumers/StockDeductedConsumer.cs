@@ -14,78 +14,94 @@ namespace AccountingService.Consumers
 {
     public class StockDeductedConsumer : BackgroundService
     {
-        private readonly IConnection _connection;
-        private readonly IModel _channel;
+        private IConnection? _connection;
+        private IModel? _channel;
         private readonly IServiceScopeFactory _scopeFactory;
         private readonly ILogger<StockDeductedConsumer> _logger;
-        private readonly string _queueName;
+        private readonly string _queueName = "accounting.cogs.queue";
 
         public StockDeductedConsumer(IServiceScopeFactory scopeFactory, ILogger<StockDeductedConsumer> logger)
         {
             _scopeFactory = scopeFactory;
             _logger = logger;
-
-            var factory = new ConnectionFactory
-            {
-                HostName = "localhost",
-                Port = 5672,
-                UserName = "guest",
-                Password = "guest"
-            };
-
-            _connection = factory.CreateConnection();
-            _channel = _connection.CreateModel();
-
-            // Declare Exchange
-            _channel.ExchangeDeclare("inventory.cogs.events", ExchangeType.Fanout, durable: true);
-
-            // Create Queue & Bind
-            _queueName = "accounting.cogs.queue";
-            _channel.QueueDeclare(queue: _queueName, durable: true, exclusive: false, autoDelete: false);
-            _channel.QueueBind(_queueName, "inventory.cogs.events", "");
         }
 
-        protected override Task ExecuteAsync(CancellationToken stoppingToken)
+        protected override async Task ExecuteAsync(CancellationToken stoppingToken)
         {
-            var consumer = new EventingBasicConsumer(_channel);
+            await Task.Delay(5000, stoppingToken);
 
-            consumer.Received += async (model, ea) =>
+            while (!stoppingToken.IsCancellationRequested)
             {
-                var body = ea.Body.ToArray();
-                var message = Encoding.UTF8.GetString(body);
-
                 try
                 {
-                    _logger.LogInformation($" [Accounting] Received COGS Event: {message}");
-
-                    var options = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
-                    var eventData = JsonSerializer.Deserialize<StockDeductedEvent>(message, options);
-
-                    if (eventData != null)
+                    var factory = new ConnectionFactory
                     {
-                        await RecordCOGSTransaction(eventData);
-                        
-                        // Acknowledge successful processing
-                        _channel.BasicAck(ea.DeliveryTag, false);
-                        _logger.LogInformation($"[Accounting] Successfully processed COGS for order #{eventData.OrderNumber}");
-                    }
-                    else
+                        HostName = "localhost",
+                        Port = 5672,
+                        UserName = "guest",
+                        Password = "guest"
+                    };
+
+                    _connection = factory.CreateConnection();
+                    _channel = _connection.CreateModel();
+
+                    _channel.ExchangeDeclare("inventory.cogs.events", ExchangeType.Fanout, durable: true);
+                    _channel.QueueDeclare(queue: _queueName, durable: true, exclusive: false, autoDelete: false);
+                    _channel.QueueBind(_queueName, "inventory.cogs.events", "");
+
+                    _logger.LogInformation("[AccountingService] Connected to RabbitMQ. Listening for COGS events...");
+
+                    var consumer = new EventingBasicConsumer(_channel);
+
+                    consumer.Received += async (model, ea) =>
                     {
-                        _logger.LogWarning("Failed to deserialize COGS event");
-                        _channel.BasicNack(ea.DeliveryTag, false, false); // Don't requeue invalid messages
+                        var body = ea.Body.ToArray();
+                        var message = Encoding.UTF8.GetString(body);
+
+                        try
+                        {
+                            _logger.LogInformation($"[AccountingService] Received COGS Event: {message}");
+
+                            var options = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
+                            var eventData = JsonSerializer.Deserialize<StockDeductedEvent>(message, options);
+
+                            if (eventData != null)
+                            {
+                                await RecordCOGSTransaction(eventData);
+                                _channel.BasicAck(ea.DeliveryTag, false);
+                                _logger.LogInformation($"[AccountingService] Successfully processed COGS for order #{eventData.OrderNumber}");
+                            }
+                            else
+                            {
+                                _logger.LogWarning("Failed to deserialize COGS event");
+                                _channel.BasicNack(ea.DeliveryTag, false, false);
+                            }
+                        }
+                        catch (Exception ex)
+                        {
+                            _logger.LogError($"[AccountingService] Error processing COGS event: {ex.Message}");
+                            _channel.BasicNack(ea.DeliveryTag, false, true);
+                        }
+                    };
+
+                    _channel.BasicConsume(_queueName, autoAck: false, consumer);
+
+                    while (!stoppingToken.IsCancellationRequested && _connection.IsOpen)
+                    {
+                        await Task.Delay(5000, stoppingToken);
                     }
+                }
+                catch (OperationCanceledException)
+                {
+                    break;
                 }
                 catch (Exception ex)
                 {
-                    _logger.LogError($" Error processing COGS event in accounting: {ex.Message}");
-                    // Reject and requeue for retry
-                    _channel.BasicNack(ea.DeliveryTag, false, true);
+                    _logger.LogWarning($"[AccountingService] RabbitMQ connection failed: {ex.Message}. Retrying in 10 seconds...");
+                    CleanupConnection();
+                    try { await Task.Delay(10000, stoppingToken); } catch (OperationCanceledException) { break; }
                 }
-            };
-
-            // Change autoAck to false for manual acknowledgment
-            _channel.BasicConsume(_queueName, autoAck: false, consumer);
-            return Task.CompletedTask;
+            }
         }
 
         private async Task RecordCOGSTransaction(StockDeductedEvent eventData)
@@ -94,7 +110,6 @@ namespace AccountingService.Consumers
             {
                 var context = scope.ServiceProvider.GetRequiredService<AccountingDbContext>();
 
-                // Find required accounts
                 var cogsAccount = await context.Accounts
                     .FirstOrDefaultAsync(a => a.AccountCode == "5000");
                 var inventoryAsset = await context.Accounts
@@ -106,7 +121,6 @@ namespace AccountingService.Consumers
                     return;
                 }
 
-                // Journal Entry: Record COGS
                 var cogsJournalEntry = new JournalEntry
                 {
                     Date = DateTime.UtcNow,
@@ -131,20 +145,26 @@ namespace AccountingService.Consumers
 
                 context.JournalEntries.Add(cogsJournalEntry);
 
-                // Update Account Balances
                 cogsAccount.Balance += eventData.TotalCost;
                 inventoryAsset.Balance -= eventData.TotalCost;
 
                 await context.SaveChangesAsync();
 
-                _logger.LogInformation($"[Accounting] Recorded COGS: Order #{eventData.OrderNumber} | {eventData.ProductName} ({eventData.ProductSku}) | Qty: {eventData.QuantityDeducted} | Cost: {eventData.TotalCost:C}");
+                _logger.LogInformation($"[AccountingService] Recorded COGS: Order #{eventData.OrderNumber} | {eventData.ProductName} ({eventData.ProductSku}) | Qty: {eventData.QuantityDeducted} | Cost: {eventData.TotalCost:C}");
             }
+        }
+
+        private void CleanupConnection()
+        {
+            try { _channel?.Close(); } catch { }
+            try { _connection?.Close(); } catch { }
+            _channel = null;
+            _connection = null;
         }
 
         public override void Dispose()
         {
-            _channel?.Close();
-            _connection?.Close();
+            CleanupConnection();
             base.Dispose();
         }
     }

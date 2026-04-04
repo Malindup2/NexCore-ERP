@@ -36,11 +36,11 @@ export default function RegisterPage() {
       return
     }
 
-    if (formData.password.length < 6) {
+    if (formData.password.length < 8) {
       toast.error("Registration failed", {
-        description: "Password must be at least 6 characters long"
+        description: "Password must be at least 8 characters long"
       })
-      setError("Password must be at least 6 characters long")
+      setError("Password must be at least 8 characters long")
       return
     }
 
@@ -137,7 +137,7 @@ export default function RegisterPage() {
               value={formData.password}
               onChange={(e) => setFormData({ ...formData, password: e.target.value })}
               required
-              minLength={6}
+              minLength={8}
               disabled={isLoading || success}
             />
           </div>
@@ -149,7 +149,7 @@ export default function RegisterPage() {
               value={formData.confirmPassword}
               onChange={(e) => setFormData({ ...formData, confirmPassword: e.target.value })}
               required
-              minLength={6}
+              minLength={8}
               disabled={isLoading || success}
             />
           </div>

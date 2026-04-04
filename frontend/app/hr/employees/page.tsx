@@ -6,14 +6,11 @@ import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { Label } from "@/components/ui/label"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Plus, Search, Mail, Phone, Filter } from "lucide-react"
+import { Search, Mail, Phone, Filter, ArrowUpRight } from "lucide-react"
 import { ProtectedRoute } from "@/components/protected-route"
 import { UserRoles } from "@/lib/auth"
-
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5166"
+import { apiJson, ApiError } from "@/lib/api"
 
 interface Employee {
   id: number
@@ -30,17 +27,7 @@ interface Employee {
 export default function EmployeesPage() {
   const [employees, setEmployees] = useState<Employee[]>([])
   const [searchQuery, setSearchQuery] = useState("")
-  const [isAddDialogOpen, setIsAddDialogOpen] = useState(false)
   const [loading, setLoading] = useState(false)
-  const [newEmployee, setNewEmployee] = useState<Partial<Employee>>({
-    firstName: "",
-    lastName: "",
-    email: "",
-    phone: "",
-    department: "",
-    designation: "",
-    isActive: true
-  })
 
   useEffect(() => {
     fetchEmployees()
@@ -49,11 +36,8 @@ export default function EmployeesPage() {
   const fetchEmployees = async () => {
     setLoading(true)
     try {
-      const response = await fetch(`${API_BASE_URL}/api/hr/employees`)
-      if (response.ok) {
-        const data = await response.json()
-        setEmployees(data)
-      }
+      const data = await apiJson<Employee[]>("/api/hr/employees")
+      setEmployees(data)
     } catch (error) {
       console.error("Error fetching employees:", error)
     } finally {
@@ -61,34 +45,9 @@ export default function EmployeesPage() {
     }
   }
 
-  const handleAddEmployee = async () => {
-    try {
-      const response = await fetch(`${API_BASE_URL}/api/hr/employees`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(newEmployee)
-      })
-
-      if (response.ok) {
-        setIsAddDialogOpen(false)
-        setNewEmployee({
-          firstName: "",
-          lastName: "",
-          email: "",
-          phone: "",
-          department: "",
-          designation: "",
-          isActive: true
-        })
-        fetchEmployees()
-      } else {
-        const error = await response.json()
-        alert(error.message || "Failed to add employee")
-      }
-    } catch (error) {
-      console.error("Error adding employee:", error)
-      alert("Failed to add employee")
-    }
+  // New employees are synced automatically when an Admin creates a new User with "Employee" role
+  const navigateToUsers = () => {
+    window.location.href = "/admin/users"
   }
 
   const filteredEmployees = employees.filter(emp =>
@@ -116,86 +75,10 @@ export default function EmployeesPage() {
             <h1 className="text-3xl font-bold tracking-tight">Employees</h1>
             <p className="text-muted-foreground">Manage your workforce</p>
           </div>
-        <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
-          <DialogTrigger asChild>
-            <Button>
-              <Plus className="mr-2 h-4 w-4" />
-              Add Employee
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="max-w-2xl">
-            <DialogHeader>
-              <DialogTitle>Add New Employee</DialogTitle>
-              <DialogDescription>Enter employee details to add them to the system</DialogDescription>
-            </DialogHeader>
-            <div className="grid gap-4 py-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="firstName">First Name</Label>
-                  <Input
-                    id="firstName"
-                    value={newEmployee.firstName}
-                    onChange={(e) => setNewEmployee({...newEmployee, firstName: e.target.value})}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="lastName">Last Name</Label>
-                  <Input
-                    id="lastName"
-                    value={newEmployee.lastName}
-                    onChange={(e) => setNewEmployee({...newEmployee, lastName: e.target.value})}
-                  />
-                </div>
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="email">Email</Label>
-                <Input
-                  id="email"
-                  type="email"
-                  value={newEmployee.email}
-                  onChange={(e) => setNewEmployee({...newEmployee, email: e.target.value})}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="phone">Phone</Label>
-                <Input
-                  id="phone"
-                  value={newEmployee.phone}
-                  onChange={(e) => setNewEmployee({...newEmployee, phone: e.target.value})}
-                />
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="department">Department</Label>
-                  <Select onValueChange={(value) => setNewEmployee({...newEmployee, department: value})}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select department" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="Engineering">Engineering</SelectItem>
-                      <SelectItem value="Marketing">Marketing</SelectItem>
-                      <SelectItem value="Sales">Sales</SelectItem>
-                      <SelectItem value="HR">HR</SelectItem>
-                      <SelectItem value="Finance">Finance</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="designation">Designation</Label>
-                  <Input
-                    id="designation"
-                    value={newEmployee.designation}
-                    onChange={(e) => setNewEmployee({...newEmployee, designation: e.target.value})}
-                  />
-                </div>
-              </div>
-            </div>
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setIsAddDialogOpen(false)}>Cancel</Button>
-              <Button onClick={handleAddEmployee}>Add Employee</Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
+          <Button onClick={navigateToUsers}>
+            <ArrowUpRight className="mr-2 h-4 w-4" />
+            Add via User Setup
+          </Button>
       </div>
 
       <Card>

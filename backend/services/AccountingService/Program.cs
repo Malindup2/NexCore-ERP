@@ -8,6 +8,34 @@ using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
 
+bool IsWeakJwtSecret(string secret)
+{
+    if (string.IsNullOrWhiteSpace(secret))
+    {
+        return true;
+    }
+
+    if (secret.Length < 32)
+    {
+        return true;
+    }
+
+    return secret.Contains("YOUR_JWT_SECRET", StringComparison.OrdinalIgnoreCase)
+        || secret.Contains("CHANGE_ME", StringComparison.OrdinalIgnoreCase)
+        || secret == "ThisIsTheSuperSecretKeyForNexCoreERP123!";
+}
+
+string RequireConfig(string key)
+{
+    var value = builder.Configuration[key];
+    if (string.IsNullOrWhiteSpace(value))
+    {
+        throw new InvalidOperationException($"Missing configuration value for {key}.");
+    }
+
+    return value;
+}
+
 //  Setup Logging
 builder.Logging.ClearProviders();
 builder.Logging.AddSerilogLogging();
@@ -25,9 +53,14 @@ builder.Services.AddHostedService<AccountingService.Consumers.GoodsReceivedConsu
 builder.Services.AddHostedService<AccountingService.Consumers.StockDeductedConsumer>();
 
 // JWT Authentication configuration
-var jwtSecret = builder.Configuration["JwtSettings:Secret"];
-var jwtIssuer = builder.Configuration["JwtSettings:Issuer"];
-var jwtAudience = builder.Configuration["JwtSettings:Audience"];
+var jwtSecret = RequireConfig("JwtSettings:Secret");
+if (IsWeakJwtSecret(jwtSecret) && !builder.Environment.IsDevelopment())
+{
+    throw new InvalidOperationException("JwtSettings:Secret must be a strong value (min 32 chars) in non-development environments.");
+}
+
+var jwtIssuer = RequireConfig("JwtSettings:Issuer");
+var jwtAudience = RequireConfig("JwtSettings:Audience");
 
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
